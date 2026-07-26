@@ -102,6 +102,20 @@ class GraphExtractionTests(unittest.TestCase):
 
         self.assertEqual(result.concepts, [])
 
+    def test_shortens_relation_longer_than_graph_label_limit(self) -> None:
+        extraction = make_extraction("Zeus ruled Olympus.")
+        extraction.concepts[0].relation = " ".join(["relação extensa"] * 30)
+
+        result = extract_graph_concepts(
+            question="Quem governa o Olimpo?",
+            answer="Zeus governa o Olimpo.",
+            chunks=[self.chunk],
+            extractor=FakeExtractor(extraction),
+        )
+
+        self.assertLessEqual(len(result.concepts[0].relation), 160)
+        self.assertTrue(result.concepts[0].relation.endswith("…"))
+
 
 if __name__ == "__main__":
     unittest.main()

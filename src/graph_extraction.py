@@ -21,7 +21,7 @@ NodeType = Literal["deus", "heroi", "lugar", "evento"]
 class GraphConcept(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     type: NodeType
-    relation: str = Field(min_length=2, max_length=160)
+    relation: str = Field(min_length=2)
     chunk_id: str
     source_quote: str = Field(min_length=3)
 
@@ -40,7 +40,8 @@ def build_graph_extractor(llm: BaseChatModel) -> Runnable[Any, GraphExtraction]:
                     "Allowed types are deus, heroi, lugar and evento. Each concept "
                     "must be supported by one supplied chunk_id and an exact verbatim "
                     "quote from that chunk. Describe its relation to the parent "
-                    "question in Brazilian Portuguese. Do not invent entities."
+                    "question in Brazilian Portuguese using at most 120 characters. "
+                    "Do not invent entities."
                 ),
             ),
             (
@@ -60,6 +61,18 @@ def _format_context(chunks: list[RetrievedChunk]) -> str:
     return "\n\n".join(
         f"[{chunk.chunk_id}] {chunk.content}" for chunk in chunks
     )
+
+
+def _shorten_relation(relation: str, max_length: int = 160) -> str:
+    normalized = " ".join(relation.split())
+    if len(normalized) <= max_length:
+        return normalized
+
+    candidate = normalized[: max_length - 1]
+    shortened = (
+        candidate.rsplit(" ", 1)[0] if " " in candidate else candidate
+    ).rstrip(" ,;:-")
+    return f"{shortened}…"
 
 
 def extract_graph_concepts(
@@ -83,6 +96,7 @@ def extract_graph_concepts(
     validated_concepts: list[GraphConcept] = []
     seen_names: set[str] = set()
     for concept in result.concepts:
+        concept.relation = _shorten_relation(concept.relation)
         normalized_name = concept.name.strip().casefold()
         if normalized_name in seen_names:
             logger.warning("Conceito duplicado descartado: %s", concept.name)
