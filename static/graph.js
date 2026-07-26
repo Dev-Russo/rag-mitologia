@@ -8,6 +8,9 @@ const elements = {
   requestStatus: document.querySelector("#request-status"),
   graphEmpty: document.querySelector("#graph-empty"),
   svg: document.querySelector("#graph-svg"),
+  zoomOut: document.querySelector("#zoom-out"),
+  fitGraph: document.querySelector("#fit-graph"),
+  zoomIn: document.querySelector("#zoom-in"),
   sourceEmpty: document.querySelector("#source-empty"),
   nodeDetails: document.querySelector("#node-details"),
   nodeType: document.querySelector("#node-type"),
@@ -26,7 +29,17 @@ const state = {
   sources: [],
   selectedNodeId: null,
   loading: false,
+  scene: null,
+  positions: new Map(),
+  graphBounds: { width: 1000, height: 560 },
+  viewport: { x: 40, y: 40, scale: 1 },
+  pointer: null,
 };
+
+const VIEWPORT_WIDTH = 1000;
+const VIEWPORT_HEIGHT = 700;
+const MIN_SCALE = 0.45;
+const MAX_SCALE = 1.8;
 
 const typeLabels = {
   pergunta: "Pergunta",
@@ -96,6 +109,7 @@ function mergeResponse(data, reset = false) {
     : `${data.evaluation.attempts} tentativa(s) sem evidência suficiente`;
 
   renderGraph();
+  if (reset) fitGraph();
 }
 
 function calculatePositions() {
@@ -159,6 +173,61 @@ function svgElement(name, attributes = {}) {
   return element;
 }
 
+function activePathNodeIds() {
+  const active = new Set();
+  let current = state.selectedNodeId;
+  while (current && !active.has(current)) {
+    active.add(current);
+    current = state.edges.find((edge) => edge.target === current)?.source;
+  }
+  return active;
+}
+
+function applyViewport() {
+  if (!state.scene) return;
+  const { x, y, scale } = state.viewport;
+  state.scene.setAttribute("transform", `translate(${x} ${y}) scale(${scale})`);
+}
+
+function fitGraph() {
+  if (!state.nodes.size) return;
+  const horizontalScale = (VIEWPORT_WIDTH - 100) / state.graphBounds.width;
+  const verticalScale = (VIEWPORT_HEIGHT - 100) / state.graphBounds.height;
+  const scale = Math.max(
+    MIN_SCALE,
+    Math.min(1, horizontalScale, verticalScale),
+  );
+  state.viewport = {
+    scale,
+    x: 50,
+    y: (VIEWPORT_HEIGHT - state.graphBounds.height * scale) / 2,
+  };
+  applyViewport();
+}
+
+function zoomGraph(factor, originX = VIEWPORT_WIDTH / 2, originY = VIEWPORT_HEIGHT / 2) {
+  const previousScale = state.viewport.scale;
+  const scale = Math.max(
+    MIN_SCALE,
+    Math.min(MAX_SCALE, previousScale * factor),
+  );
+  if (scale === previousScale) return;
+  const worldX = (originX - state.viewport.x) / previousScale;
+  const worldY = (originY - state.viewport.y) / previousScale;
+  state.viewport.scale = scale;
+  state.viewport.x = originX - worldX * scale;
+  state.viewport.y = originY - worldY * scale;
+  applyViewport();
+}
+
+function focusNode(nodeId) {
+  const position = state.positions.get(nodeId);
+  if (!position) return;
+  state.viewport.x = VIEWPORT_WIDTH * 0.28 - position.x * state.viewport.scale;
+  state.viewport.y = VIEWPORT_HEIGHT / 2 - position.y * state.viewport.scale;
+  applyViewport();
+}
+
 function addSelectedLabel(group, label) {
   const text = svgElement("text", {
     class: "graph-node-label is-visible",
@@ -171,11 +240,16 @@ function addSelectedLabel(group, label) {
 
 function renderGraph() {
   const { positions, width, height } = calculatePositions();
+  state.positions = positions;
+  state.graphBounds = { width, height };
   elements.svg.replaceChildren();
   elements.graphEmpty.toggleAttribute("hidden", state.nodes.size > 0);
   elements.svg.toggleAttribute("hidden", state.nodes.size === 0);
   if (!state.nodes.size) return;
-  elements.svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  elements.svg.setAttribute("viewBox", `0 0 ${VIEWPORT_WIDTH} ${VIEWPORT_HEIGHT}`);
+  const scene = svgElement("g", { class: "graph-scene" });
+  state.scene = scene;
+  const activeNodes = activePathNodeIds();
 
   const edgeLayer = svgElement("g", { class: "edge-layer" });
   state.edges.forEach((edge) => {
@@ -184,7 +258,11 @@ function renderGraph() {
     if (!start || !end) return;
     const curve = Math.max(70, (end.x - start.x) * 0.45);
     edgeLayer.appendChild(svgElement("path", {
-      class: "graph-edge",
+      class: `graph-edge${
+        activeNodes.has(edge.source) && activeNodes.has(edge.target)
+          ? " is-active"
+          : ""
+      }`,
       d: [
         `M ${start.x + 34} ${start.y}`,
         `C ${start.x + curve} ${start.y}`,
@@ -194,14 +272,16 @@ function renderGraph() {
       "aria-hidden": "true",
     }));
   });
-  elements.svg.appendChild(edgeLayer);
+  scene.appendChild(edgeLayer);
 
   const nodeLayer = svgElement("g", { class: "node-layer" });
   state.nodes.forEach((node) => {
     const position = positions.get(node.id);
     const selected = node.id === state.selectedNodeId;
     const group = svgElement("g", {
-      class: `graph-node graph-node-${node.type}${selected ? " is-selected" : ""}`,
+      class: `graph-node graph-node-${node.type}${
+        selected ? " is-selected" : ""
+      }${activeNodes.has(node.id) ? " is-in-path" : ""}`,
       transform: `translate(${position.x} ${position.y})`,
       tabindex: "0",
       role: "button",
@@ -224,7 +304,9 @@ function renderGraph() {
     });
     nodeLayer.appendChild(group);
   });
-  elements.svg.appendChild(nodeLayer);
+  scene.appendChild(nodeLayer);
+  elements.svg.appendChild(scene);
+  applyViewport();
 }
 
 function findSource(node) {
@@ -267,6 +349,7 @@ async function expandSelectedNode(nodeId = state.selectedNodeId) {
       concept: node.label,
     });
     mergeResponse(data);
+    focusNode(node.id);
     elements.requestStatus.textContent =
       data.status === "insufficient"
         ? data.answer
@@ -299,6 +382,55 @@ elements.form.addEventListener("submit", async (event) => {
 });
 
 elements.expandButton.addEventListener("click", () => expandSelectedNode());
+elements.zoomOut.addEventListener("click", () => zoomGraph(0.82));
+elements.zoomIn.addEventListener("click", () => zoomGraph(1.22));
+elements.fitGraph.addEventListener("click", fitGraph);
+
+elements.svg.addEventListener(
+  "wheel",
+  (event) => {
+    event.preventDefault();
+    const bounds = elements.svg.getBoundingClientRect();
+    const originX = ((event.clientX - bounds.left) / bounds.width) * VIEWPORT_WIDTH;
+    const originY = ((event.clientY - bounds.top) / bounds.height) * VIEWPORT_HEIGHT;
+    zoomGraph(event.deltaY < 0 ? 1.12 : 0.89, originX, originY);
+  },
+  { passive: false },
+);
+
+elements.svg.addEventListener("pointerdown", (event) => {
+  if (event.target.closest(".graph-node")) return;
+  elements.svg.setPointerCapture(event.pointerId);
+  state.pointer = {
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    viewportX: state.viewport.x,
+    viewportY: state.viewport.y,
+  };
+  elements.svg.classList.add("is-panning");
+});
+
+elements.svg.addEventListener("pointermove", (event) => {
+  if (!state.pointer || state.pointer.id !== event.pointerId) return;
+  const bounds = elements.svg.getBoundingClientRect();
+  state.viewport.x =
+    state.pointer.viewportX +
+    ((event.clientX - state.pointer.x) / bounds.width) * VIEWPORT_WIDTH;
+  state.viewport.y =
+    state.pointer.viewportY +
+    ((event.clientY - state.pointer.y) / bounds.height) * VIEWPORT_HEIGHT;
+  applyViewport();
+});
+
+function stopPanning(event) {
+  if (!state.pointer || state.pointer.id !== event.pointerId) return;
+  state.pointer = null;
+  elements.svg.classList.remove("is-panning");
+}
+
+elements.svg.addEventListener("pointerup", stopPanning);
+elements.svg.addEventListener("pointercancel", stopPanning);
 
 async function checkApiHealth() {
   try {
