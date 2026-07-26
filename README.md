@@ -7,14 +7,15 @@ documento usado pelo pipeline RAG.
 O projeto está sendo desenvolvido para o **Challenge Alura/Oracle Next Education —
 Track Tech AI Builder**.
 
-> **Estado atual:** esqueleto da aplicação concluído. A ingestão do corpus, a busca
-> vetorial e a integração com o LLM serão implementadas nas próximas etapas.
+> **Estado atual:** pipeline RAG implementado e coberto por testes automatizados.
+> Falta adicionar e indexar o PDF real de *Bulfinch's Mythology*.
 
 ## Tecnologias definidas
 
 - Python 3.14
 - FastAPI e Uvicorn
 - ChromaDB
+- LangChain e LangGraph
 - FastEmbed/ONNX com `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
 - Claude Haiku 4.5 por meio do SDK da Anthropic
 - HTML, CSS e JavaScript
@@ -30,7 +31,9 @@ Track Tech AI Builder**.
 │   ├── generation.py
 │   ├── graph_extraction.py
 │   ├── ingest.py
-│   └── retrieval.py
+│   ├── retrieval.py
+│   ├── vector_store.py
+│   └── workflow.py
 ├── static/
 │   ├── graph.js
 │   └── style.css
@@ -90,8 +93,8 @@ No Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-Nesta primeira etapa, a aplicação inicia mesmo sem uma chave da Anthropic. A
-variável `ANTHROPIC_API_KEY` será necessária quando a geração for implementada.
+A aplicação web inicia mesmo sem uma chave da Anthropic. A chave é obrigatória
+para executar o workflow RAG e nunca deve ser versionada.
 
 ### Inicialização
 
@@ -118,9 +121,69 @@ O health check deve responder:
 | `ANTHROPIC_API_KEY` | Credencial da API da Anthropic | sem valor |
 | `ANTHROPIC_MODEL` | Modelo usado para geração | `claude-haiku-4-5` |
 | `CHROMA_PATH` | Diretório do banco vetorial | `./chroma_db` |
+| `CHROMA_COLLECTION` | Nome da coleção persistente | `bulfinch_mythology` |
 | `EMBEDDING_MODEL` | Modelo local de embeddings | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
+| `PDF_PATH` | Caminho padrão do corpus | `./data/bulfinch-mythology.pdf` |
+| `RETRIEVAL_TOP_K` | Número de chunks recuperados | `5` |
+| `RETRIEVAL_MIN_SCORE` | Relevância mínima aceita | `0.45` |
+| `MAX_RETRIEVAL_ATTEMPTS` | Limite total de buscas | `3` |
 
 Nunca versione o arquivo `.env` ou chaves de API.
+
+## Pipeline RAG
+
+O workflow usa LangGraph para manter explícito e limitado o ciclo de recuperação:
+
+```text
+pergunta
+   ↓
+recuperação no Chroma
+   ↓
+avaliação por score
+   ├── insuficiente → Claude reformula → nova recuperação (máximo 3)
+   ├── insuficiente após a 3ª tentativa → resposta de insuficiência
+   └── suficiente → resposta fundamentada → conceitos do grafo
+```
+
+As citações da resposta e dos conceitos são validadas contra o conteúdo real dos
+chunks. Uma citação inventada ou vinculada ao chunk errado é rejeitada.
+
+## Preparação do corpus
+
+Adicione a edição em domínio público como:
+
+```text
+data/bulfinch-mythology.pdf
+```
+
+Se o arquivo tiver até 50 MB, ele pode ser versionado junto com a referência de
+origem e licença. Para verificar apenas a extração e o chunking:
+
+```bash
+python -m src.ingest data/bulfinch-mythology.pdf --prepare-only
+```
+
+Para extrair, gerar os embeddings e fazer upsert no Chroma:
+
+```bash
+python -m src.ingest data/bulfinch-mythology.pdf
+```
+
+Os IDs são determinísticos. Executar a ingestão novamente atualiza os mesmos
+chunks, em vez de duplicá-los.
+
+## Testes
+
+Execute a suíte sem consumir a API da Anthropic:
+
+```bash
+python -m unittest discover -v
+python -m pip check
+```
+
+Os testes cobrem chunking, IDs estáveis, indexação, retrieval, avaliação, limite
+de tentativas, citações, conceitos e falhas controladas. As integrações com Claude
+são mockadas para evitar custo acidental.
 
 ## Desenvolvimento
 
@@ -139,8 +202,8 @@ chore: atualiza dependências do projeto
 
 ## Próximas etapas
 
-1. Implementar extração, chunking e indexação do documento.
-2. Adicionar recuperação semântica e geração fundamentada.
-3. Extrair conceitos e relacionamentos em JSON estruturado.
-4. Conectar as rotas de consulta e expansão ao grafo interativo.
-5. Preparar testes, documentação completa e deploy na OCI.
+1. Adicionar e indexar o PDF real de *Bulfinch's Mythology*.
+2. Calibrar o score mínimo com perguntas reais em português.
+3. Conectar `/query` e `/expand` ao workflow.
+4. Renderizar os nós e fontes no grafo interativo.
+5. Preparar evidências e deploy na OCI.
