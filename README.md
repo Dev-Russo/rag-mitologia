@@ -12,10 +12,10 @@ Track Tech AI Builder**.
 
 ## Tecnologias definidas
 
-- Python 3.11
+- Python 3.14
 - FastAPI e Uvicorn
 - ChromaDB
-- Sentence Transformers com `intfloat/multilingual-e5-small`
+- FastEmbed/ONNX com `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
 - Claude Haiku 4.5 por meio do SDK da Anthropic
 - HTML, CSS e JavaScript
 
@@ -44,7 +44,7 @@ Track Tech AI Builder**.
 
 ### Pré-requisitos
 
-- Python 3.11
+- Python 3.14
 - Git
 
 Confirme que o interpretador ativo é o correto:
@@ -60,14 +60,14 @@ Crie e ative um ambiente virtual.
 No Linux ou macOS:
 
 ```bash
-python3.11 -m venv .venv
+python3.14 -m venv .venv
 source .venv/bin/activate
 ```
 
 No Windows PowerShell:
 
 ```powershell
-py -3.11 -m venv .venv
+py -3.14 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
@@ -118,7 +118,7 @@ O health check deve responder:
 | `ANTHROPIC_API_KEY` | Credencial da API da Anthropic | sem valor |
 | `ANTHROPIC_MODEL` | Modelo usado para geração | `claude-haiku-4-5` |
 | `CHROMA_PATH` | Diretório do banco vetorial | `./chroma_db` |
-| `EMBEDDING_MODEL` | Modelo local de embeddings | `intfloat/multilingual-e5-small` |
+| `EMBEDDING_MODEL` | Modelo local de embeddings | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
 
 Nunca versione o arquivo `.env` ou chaves de API.
 
