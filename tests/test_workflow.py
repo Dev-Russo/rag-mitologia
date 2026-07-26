@@ -116,6 +116,10 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(result.nodes), 4)
         self.assertEqual(len(result.edges), 3)
         self.assertEqual(result.sources[0].page, 10)
+        self.assertIn(
+            "Hera was his queen.",
+            {source.quote for source in result.sources},
+        )
 
     def test_stops_after_three_insufficient_retrievals(self) -> None:
         store = SequenceStore([0.1, 0.2, 0.3])

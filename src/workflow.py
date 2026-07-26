@@ -260,16 +260,37 @@ class RAGWorkflow:
         chunks_by_id = {
             chunk.chunk_id: chunk for chunk in self._approved_chunks(state)
         }
-        sources = [
-            SourceReference(
-                chunk_id=citation.chunk_id,
-                source=chunks_by_id[citation.chunk_id].source,
-                page=chunks_by_id[citation.chunk_id].page,
-                quote=citation.quote,
-                score=chunks_by_id[citation.chunk_id].score,
+        sources: list[SourceReference] = []
+        seen_quotes: set[tuple[str, str]] = set()
+        for citation in state["answer"].citations:
+            chunk = chunks_by_id[citation.chunk_id]
+            sources.append(
+                SourceReference(
+                    chunk_id=citation.chunk_id,
+                    source=chunk.source,
+                    page=chunk.page,
+                    quote=citation.quote,
+                    score=chunk.score,
+                )
             )
-            for citation in state["answer"].citations
-        ]
+            seen_quotes.add((citation.chunk_id, citation.quote))
+
+        for concept in state["extraction"].concepts:
+            source_key = (concept.chunk_id, concept.source_quote)
+            if source_key in seen_quotes:
+                continue
+            chunk = chunks_by_id[concept.chunk_id]
+            sources.append(
+                SourceReference(
+                    chunk_id=concept.chunk_id,
+                    source=chunk.source,
+                    page=chunk.page,
+                    quote=concept.source_quote,
+                    score=chunk.score,
+                )
+            )
+            seen_quotes.add(source_key)
+
         return WorkflowResponse(
             status="ok",
             answer=state["answer"].answer,
