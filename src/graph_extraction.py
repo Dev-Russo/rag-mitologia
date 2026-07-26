@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -11,6 +12,8 @@ from pydantic import BaseModel, Field
 
 from src.grounding import canonical_source_quote
 from src.retrieval import RetrievedChunk
+
+logger = logging.getLogger(__name__)
 
 NodeType = Literal["deus", "heroi", "lugar", "evento"]
 
@@ -24,7 +27,7 @@ class GraphConcept(BaseModel):
 
 
 class GraphExtraction(BaseModel):
-    concepts: list[GraphConcept] = Field(min_length=3, max_length=6)
+    concepts: list[GraphConcept] = Field(max_length=6)
 
 
 def build_graph_extractor(llm: BaseChatModel) -> Runnable[Any, GraphExtraction]:
@@ -77,25 +80,33 @@ def extract_graph_concepts(
         }
     )
     chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
+    validated_concepts: list[GraphConcept] = []
     seen_names: set[str] = set()
     for concept in result.concepts:
         normalized_name = concept.name.strip().casefold()
         if normalized_name in seen_names:
-            raise ValueError(f"Conceito duplicado: {concept.name}")
-        seen_names.add(normalized_name)
+            logger.warning("Conceito duplicado descartado: %s", concept.name)
+            continue
 
         source = chunks_by_id.get(concept.chunk_id)
         if source is None:
-            raise ValueError(
-                f"Conceito referencia chunk desconhecido: {concept.chunk_id}"
+            logger.warning(
+                "Conceito %s descartado por referenciar chunk desconhecido",
+                concept.name,
             )
+            continue
         try:
             concept.source_quote = canonical_source_quote(
                 concept.source_quote,
                 source.content,
             )
-        except ValueError as exc:
-            raise ValueError(
-                f"Trecho do conceito não existe no chunk {concept.chunk_id}"
-            ) from exc
-    return result
+        except ValueError:
+            logger.warning(
+                "Conceito %s descartado por não possuir citação literal",
+                concept.name,
+            )
+            continue
+
+        seen_names.add(normalized_name)
+        validated_concepts.append(concept)
+    return GraphExtraction(concepts=validated_concepts)

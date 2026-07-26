@@ -68,15 +68,33 @@ class GraphExtractionTests(unittest.TestCase):
 
         self.assertEqual(len(result.concepts), 3)
 
-    def test_rejects_concept_with_invented_quote(self) -> None:
+    def test_discards_concept_with_invented_quote(self) -> None:
         extraction = make_extraction("Zeus created the world.")
-        with self.assertRaises(ValueError):
-            extract_graph_concepts(
-                question="Quem governa o Olimpo?",
-                answer="Zeus governa o Olimpo.",
-                chunks=[self.chunk],
-                extractor=FakeExtractor(extraction),
-            )
+        result = extract_graph_concepts(
+            question="Quem governa o Olimpo?",
+            answer="Zeus governa o Olimpo.",
+            chunks=[self.chunk],
+            extractor=FakeExtractor(extraction),
+        )
+
+        self.assertEqual(
+            {concept.name for concept in result.concepts},
+            {"Hera", "Olimpo"},
+        )
+
+    def test_returns_empty_extraction_when_every_concept_is_ungrounded(self) -> None:
+        extraction = make_extraction("Invented Zeus quote")
+        for concept in extraction.concepts:
+            concept.source_quote = f"Invented quote about {concept.name}"
+
+        result = extract_graph_concepts(
+            question="Quem governa o Olimpo?",
+            answer="Zeus governa o Olimpo.",
+            chunks=[self.chunk],
+            extractor=FakeExtractor(extraction),
+        )
+
+        self.assertEqual(result.concepts, [])
 
 
 if __name__ == "__main__":
