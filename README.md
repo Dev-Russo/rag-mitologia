@@ -8,7 +8,8 @@ O projeto está sendo desenvolvido para o **Challenge Alura/Oracle Next Educatio
 Track Tech AI Builder**.
 
 > **Estado atual:** pipeline RAG implementado e coberto por testes automatizados.
-> Falta adicionar e indexar o PDF real de *Bulfinch's Mythology*.
+> O corpus de *The Age of Fable* já está incluído; execute a ingestão local para
+> gerar a coleção Chroma, que não é versionada.
 
 ## Tecnologias definidas
 
@@ -150,23 +151,24 @@ chunks. Uma citação inventada ou vinculada ao chunk errado é rejeitada.
 
 ## Preparação do corpus
 
-Adicione a edição em domínio público como:
+O corpus usado é *The Age of Fable, or, Stories of Gods and Heroes*, de Thomas
+Bulfinch, digitalizado pelo Internet Archive e disponível em domínio público:
+<https://archive.org/details/ageoffableorstor00bulf_0>.
 
 ```text
-data/bulfinch-mythology.pdf
+data/ageoffableorstor00bulf_0.pdf
 ```
 
-Se o arquivo tiver até 50 MB, ele pode ser versionado junto com a referência de
-origem e licença. Para verificar apenas a extração e o chunking:
+Para verificar apenas a extração e o chunking:
 
 ```bash
-python -m src.ingest data/bulfinch-mythology.pdf --prepare-only
+python -m src.ingest data/ageoffableorstor00bulf_0.pdf --prepare-only
 ```
 
 Para extrair, gerar os embeddings e fazer upsert no Chroma:
 
 ```bash
-python -m src.ingest data/bulfinch-mythology.pdf
+python -m src.ingest data/ageoffableorstor00bulf_0.pdf
 ```
 
 Os IDs são determinísticos. Executar a ingestão novamente atualiza os mesmos
@@ -202,8 +204,7 @@ chore: atualiza dependências do projeto
 
 ## Próximas etapas
 
-1. Adicionar e indexar o PDF real de *Bulfinch's Mythology*.
-2. Calibrar o score mínimo com perguntas reais em português.
-3. Conectar `/query` e `/expand` ao workflow.
-4. Renderizar os nós e fontes no grafo interativo.
-5. Preparar evidências e deploy na OCI.
+1. Calibrar o score mínimo com perguntas reais em português.
+2. Conectar `/query` e `/expand` ao workflow.
+3. Renderizar os nós e fontes no grafo interativo.
+4. Preparar evidências e deploy na OCI.
