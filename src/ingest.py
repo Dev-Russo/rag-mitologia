@@ -11,6 +11,9 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from src.config import get_settings
+from src.vector_store import create_vector_store, index_documents
+
 DEFAULT_CHUNK_SIZE = 1_000
 DEFAULT_CHUNK_OVERLAP = 150
 
@@ -90,10 +93,15 @@ def load_and_split_pdf(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Prepara o corpus mitológico em chunks.")
+    parser = argparse.ArgumentParser(description="Prepara e indexa o corpus mitológico.")
     parser.add_argument("pdf", type=Path, help="Caminho para o documento PDF.")
     parser.add_argument("--chunk-size", type=int, default=DEFAULT_CHUNK_SIZE)
     parser.add_argument("--chunk-overlap", type=int, default=DEFAULT_CHUNK_OVERLAP)
+    parser.add_argument(
+        "--prepare-only",
+        action="store_true",
+        help="Extrai os chunks sem gerar embeddings nem gravar no Chroma.",
+    )
     args = parser.parse_args()
 
     chunks = load_and_split_pdf(
@@ -103,6 +111,20 @@ def main() -> None:
     )
     pages = {chunk.metadata["page"] for chunk in chunks}
     print(f"Documento preparado: {len(chunks)} chunks em {len(pages)} páginas.")
+    if args.prepare_only:
+        return
+
+    settings = get_settings()
+    vector_store = create_vector_store(
+        persist_directory=settings.chroma_path,
+        collection_name=settings.chroma_collection,
+        model_name=settings.embedding_model,
+    )
+    indexed = index_documents(chunks, vector_store)
+    print(
+        f"Indexação concluída: {indexed} chunks na coleção "
+        f"'{settings.chroma_collection}'."
+    )
 
 
 if __name__ == "__main__":
