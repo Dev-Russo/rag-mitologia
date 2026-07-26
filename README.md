@@ -115,6 +115,50 @@ O health check deve responder:
 {"status": "ok"}
 ```
 
+Na interface, faça uma pergunta para criar o nó raiz. Clique em um conceito para
+ver o trecho e a página de origem; use **Expandir conceito** para executar uma nova
+busca RAG e incorporar os filhos ao mapa atual.
+
+## API
+
+Uma consulta inicial usa `POST /query`:
+
+```json
+{
+  "question": "Quem é Zeus e qual é sua relação com o Olimpo?"
+}
+```
+
+Uma expansão usa o ID e o rótulo de um nó retornado anteriormente:
+
+```json
+{
+  "node_id": "concept:identificador",
+  "concept": "Zeus"
+}
+```
+
+Envie esse corpo para `POST /expand`. As duas rotas devolvem o mesmo contrato:
+
+```json
+{
+  "status": "ok",
+  "answer": "Resposta fundamentada em português.",
+  "evaluation": {
+    "sufficient": true,
+    "attempts": 1,
+    "final_query": "consulta utilizada",
+    "max_score": 0.6751
+  },
+  "nodes": [],
+  "edges": [],
+  "sources": []
+}
+```
+
+Respostas sem evidência usam `status: "insufficient"`. Falhas controladas do
+pipeline respondem HTTP 503 com `status: "error"`.
+
 ## Configuração
 
 | Variável | Finalidade | Valor inicial |
@@ -184,8 +228,8 @@ python -m pip check
 ```
 
 Os testes cobrem chunking, IDs estáveis, indexação, retrieval, avaliação, limite
-de tentativas, citações, conceitos e falhas controladas. As integrações com Claude
-são mockadas para evitar custo acidental.
+de tentativas, citações, conceitos, rotas e falhas controladas. As integrações com
+Claude são mockadas para evitar custo acidental.
 
 ## Desenvolvimento
 
@@ -204,7 +248,7 @@ chore: atualiza dependências do projeto
 
 ## Próximas etapas
 
-1. Calibrar o score mínimo com perguntas reais em português.
-2. Conectar `/query` e `/expand` ao workflow.
-3. Renderizar os nós e fontes no grafo interativo.
-4. Preparar evidências e deploy na OCI.
+1. Validar visualmente consultas e expansões no navegador.
+2. Registrar screenshots de perguntas representativas.
+3. Preparar configuração de produção e deploy na OCI.
+4. Completar o README com evidências do agente publicado.
