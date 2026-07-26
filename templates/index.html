@@ -37,32 +37,64 @@
                 type="text"
                 placeholder="Ex.: Quem são os filhos de Zeus?"
                 autocomplete="off"
-                disabled
+                minlength="3"
+                maxlength="500"
+                required
               >
-              <button type="submit" disabled>Gerar mapa</button>
+              <button id="query-button" type="submit">Gerar mapa</button>
             </div>
+            <p id="request-status" class="request-status" aria-live="polite"></p>
           </form>
         </div>
 
-        <div id="graph" class="graph-placeholder">
-          <div class="orbit" aria-hidden="true">
-            <span class="node node-main"></span>
-            <span class="node node-one"></span>
-            <span class="node node-two"></span>
-            <span class="node node-three"></span>
+        <div id="graph" class="graph-canvas">
+          <div id="graph-empty" class="graph-empty">
+            <div class="orbit" aria-hidden="true">
+              <span class="node node-main"></span>
+              <span class="node node-one"></span>
+              <span class="node node-two"></span>
+              <span class="node node-three"></span>
+            </div>
+            <p>Faça uma pergunta para iniciar o mapa mitológico.</p>
           </div>
-          <p>O grafo interativo será conectado ao pipeline RAG nas próximas etapas.</p>
+          <svg
+            id="graph-svg"
+            viewBox="0 0 1000 700"
+            role="img"
+            aria-label="Mapa interativo dos conceitos recuperados"
+            hidden
+          ></svg>
+          <div class="legend" aria-label="Legenda do mapa">
+            <span><i class="legend-dot type-pergunta"></i>Pergunta</span>
+            <span><i class="legend-dot type-deus"></i>Deus</span>
+            <span><i class="legend-dot type-heroi"></i>Herói</span>
+            <span><i class="legend-dot type-lugar"></i>Lugar</span>
+            <span><i class="legend-dot type-evento"></i>Evento</span>
+          </div>
         </div>
       </section>
 
       <aside class="source-panel" aria-labelledby="source-title">
         <p class="eyebrow">FONTE RASTREÁVEL</p>
         <h2 id="source-title">Contexto do nó</h2>
-        <p>
-          Selecione um conceito no mapa para consultar o trecho exato do documento
-          que fundamentou a resposta.
-        </p>
-        <div class="source-empty">Nenhum nó selecionado</div>
+        <div id="source-empty" class="source-empty">
+          Selecione um conceito no mapa para consultar o trecho exato do documento.
+        </div>
+        <div id="node-details" hidden>
+          <span id="node-type" class="node-type"></span>
+          <h3 id="node-label"></h3>
+          <blockquote id="source-quote"></blockquote>
+          <p id="source-meta" class="source-meta"></p>
+          <button id="expand-button" class="secondary-button" type="button">
+            Expandir conceito
+          </button>
+        </div>
+
+        <section id="answer-panel" class="answer-panel" hidden>
+          <p class="eyebrow">RESPOSTA FUNDAMENTADA</p>
+          <p id="answer-text"></p>
+          <p id="answer-meta" class="source-meta"></p>
+        </section>
       </aside>
     </main>
   </body>
