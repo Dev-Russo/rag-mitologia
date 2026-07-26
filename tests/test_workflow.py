@@ -1,12 +1,13 @@
 import unittest
 from typing import Any
+from unittest.mock import patch
 
 from langchain_core.documents import Document
 
 from src.config import Settings
 from src.generation import Citation, GroundedAnswer, QueryRewrite
 from src.graph_extraction import GraphConcept, GraphExtraction
-from src.workflow import RAGWorkflow
+from src.workflow import RAGWorkflow, create_rag_workflow
 
 
 class SequenceStore:
@@ -144,6 +145,31 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertEqual(result.status, "error")
         self.assertIsNotNone(result.error)
+
+    def test_factory_connects_real_components(self) -> None:
+        settings = Settings(_env_file=None)
+        store = SequenceStore([0.9])
+        rewriter = SequenceRewriter()
+        answer_generator = StaticAnswerGenerator()
+        graph_extractor = StaticGraphExtractor()
+
+        with (
+            patch("src.workflow.create_vector_store", return_value=store),
+            patch("src.workflow.create_chat_model", return_value=object()),
+            patch("src.workflow.build_query_rewriter", return_value=rewriter),
+            patch(
+                "src.workflow.build_answer_generator",
+                return_value=answer_generator,
+            ),
+            patch(
+                "src.workflow.build_graph_extractor",
+                return_value=graph_extractor,
+            ),
+        ):
+            workflow = create_rag_workflow(settings)
+
+        self.assertIsInstance(workflow, RAGWorkflow)
+        self.assertIs(workflow.vector_store, store)
 
 
 if __name__ == "__main__":

@@ -8,14 +8,22 @@ from typing import Any, Literal, TypedDict
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel
 
-from src.config import Settings
+from src.config import Settings, get_settings
 from src.generation import (
     GroundedAnswer,
+    build_answer_generator,
+    build_query_rewriter,
+    create_chat_model,
     generate_answer,
     rewrite_query,
 )
-from src.graph_extraction import GraphExtraction, extract_graph_concepts
+from src.graph_extraction import (
+    GraphExtraction,
+    build_graph_extractor,
+    extract_graph_concepts,
+)
 from src.retrieval import RetrievalResult, RetrievedChunk, retrieve
+from src.vector_store import create_vector_store
 
 
 class WorkflowState(TypedDict, total=False):
@@ -270,3 +278,21 @@ class RAGWorkflow:
             edges=edges,
             sources=sources,
         )
+
+
+def create_rag_workflow(settings: Settings | None = None) -> RAGWorkflow:
+    """Conecta as dependências reais do agente a partir das variáveis de ambiente."""
+    resolved_settings = settings or get_settings()
+    vector_store = create_vector_store(
+        persist_directory=resolved_settings.chroma_path,
+        collection_name=resolved_settings.chroma_collection,
+        model_name=resolved_settings.embedding_model,
+    )
+    llm = create_chat_model(resolved_settings)
+    return RAGWorkflow(
+        vector_store=vector_store,
+        rewriter=build_query_rewriter(llm),
+        answer_generator=build_answer_generator(llm),
+        graph_extractor=build_graph_extractor(llm),
+        settings=resolved_settings,
+    )
