@@ -126,7 +126,7 @@ O health check deve responder:
 | `EMBEDDING_MODEL` | Modelo local de embeddings | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
 | `PDF_PATH` | Caminho padrão do corpus | `./data/bulfinch-mythology.pdf` |
 | `RETRIEVAL_TOP_K` | Número de chunks recuperados | `5` |
-| `RETRIEVAL_MIN_SCORE` | Relevância mínima aceita | `0.45` |
+| `RETRIEVAL_MIN_SCORE` | Relevância mínima aceita | `0.40` |
 | `MAX_RETRIEVAL_ATTEMPTS` | Limite total de buscas | `3` |
 
 Nunca versione o arquivo `.env` ou chaves de API.

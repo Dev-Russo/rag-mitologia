@@ -51,7 +51,7 @@ def retrieve(
     vector_store: Any,
     *,
     top_k: int = 5,
-    min_score: float = 0.45,
+    min_score: float = 0.40,
 ) -> RetrievalResult:
     normalized_query = query.strip()
     if not normalized_query:

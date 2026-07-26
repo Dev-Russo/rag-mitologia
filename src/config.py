@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     )
     pdf_path: Path = Path("./data/ageoffableorstor00bulf_0.pdf")
     retrieval_top_k: int = Field(default=5, ge=1, le=20)
-    retrieval_min_score: float = Field(default=0.45, ge=0.0, le=1.0)
+    retrieval_min_score: float = Field(default=0.40, ge=0.0, le=1.0)
     max_retrieval_attempts: int = Field(default=3, ge=1, le=5)
 
 
