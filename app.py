@@ -32,8 +32,19 @@ class ExpandRequest(BaseModel):
 
 
 @lru_cache
-def get_workflow() -> RAGWorkflow:
+def _cached_workflow() -> RAGWorkflow:
     return create_rag_workflow()
+
+
+def get_workflow() -> RAGWorkflow:
+    """Recria o workflow se a coleção tiver sido substituída por um rebuild."""
+    workflow = _cached_workflow()
+    try:
+        workflow.vector_store.get(limit=1, include=[])
+    except Exception:
+        _cached_workflow.cache_clear()
+        workflow = _cached_workflow()
+    return workflow
 
 
 def _api_response(result: WorkflowResponse) -> WorkflowResponse | JSONResponse:

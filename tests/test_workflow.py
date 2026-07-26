@@ -145,10 +145,12 @@ class WorkflowTests(unittest.TestCase):
                 raise TimeoutError
 
         workflow = make_workflow(FailingStore(), SequenceRewriter())
-        result = workflow.run("Quem era Zeus?")
+        with patch("src.workflow.logger.exception") as log_exception:
+            result = workflow.run("Quem era Zeus?")
 
         self.assertEqual(result.status, "error")
         self.assertIsNotNone(result.error)
+        log_exception.assert_called_once()
 
     def test_factory_connects_real_components(self) -> None:
         settings = Settings(_env_file=None)

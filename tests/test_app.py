@@ -1,4 +1,6 @@
 import unittest
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -118,6 +120,23 @@ class AppRoutesTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["status"], "error")
+
+    def test_reconnects_after_chroma_collection_rebuild(self) -> None:
+        stale_store = MagicMock()
+        stale_store.get.side_effect = RuntimeError("collection no longer exists")
+        stale = SimpleNamespace(vector_store=stale_store)
+        fresh_store = MagicMock()
+        fresh = SimpleNamespace(vector_store=fresh_store)
+
+        with patch(
+            "app._cached_workflow",
+            side_effect=[stale, fresh],
+        ) as cached:
+            result = get_workflow()
+
+        self.assertIs(result, fresh)
+        cached.cache_clear.assert_called_once()
+        fresh_store.get.assert_not_called()
 
 
 if __name__ == "__main__":

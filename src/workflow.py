@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from typing import Any, Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -24,6 +25,8 @@ from src.graph_extraction import (
 )
 from src.retrieval import RetrievalResult, RetrievedChunk, retrieve
 from src.vector_store import create_vector_store
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowState(TypedDict, total=False):
@@ -188,6 +191,7 @@ class RAGWorkflow:
         try:
             state = self.graph.invoke(initial)
         except Exception:
+            logger.exception("Falha interna ao executar o pipeline RAG")
             return WorkflowResponse(
                 status="error",
                 answer="Não foi possível consultar o corpus neste momento.",
