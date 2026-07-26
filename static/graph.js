@@ -185,8 +185,8 @@ function addNodeLabel(group, label) {
 function renderGraph() {
   const positions = calculatePositions();
   elements.svg.replaceChildren();
-  elements.graphEmpty.hidden = state.nodes.size > 0;
-  elements.svg.hidden = state.nodes.size === 0;
+  elements.graphEmpty.toggleAttribute("hidden", state.nodes.size > 0);
+  elements.svg.toggleAttribute("hidden", state.nodes.size === 0);
   if (!state.nodes.size) return;
 
   const edgeLayer = svgElement("g", { class: "edge-layer" });
