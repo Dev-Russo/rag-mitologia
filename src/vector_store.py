@@ -2,18 +2,44 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+from fastembed import TextEmbedding
 from langchain_chroma import Chroma
-from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
 
+class FastEmbedAdapter(Embeddings):
+    """Adapta FastEmbed diretamente ao contrato do LangChain."""
+
+    def __init__(self, model_name: str, engine: Any | None = None) -> None:
+        if engine is not None:
+            self.engine = engine
+            return
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"The model .* now uses mean pooling instead of CLS embedding.*",
+                category=UserWarning,
+            )
+            self.engine = TextEmbedding(model_name=model_name)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [
+            vector.tolist()
+            for vector in self.engine.passage_embed(texts)
+        ]
+
+    def embed_query(self, text: str) -> list[float]:
+        return next(self.engine.query_embed([text])).tolist()
+
+
 def create_embeddings(model_name: str) -> Embeddings:
-    return FastEmbedEmbeddings(model_name=model_name)
+    return FastEmbedAdapter(model_name=model_name)
 
 
 def create_vector_store(

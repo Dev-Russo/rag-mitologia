@@ -1,8 +1,9 @@
 import unittest
 
+import numpy as np
 from langchain_core.documents import Document
 
-from src.vector_store import index_documents
+from src.vector_store import FastEmbedAdapter, index_documents
 
 
 class FakeVectorStore:
@@ -42,6 +43,27 @@ class IndexDocumentsTests(unittest.TestCase):
                 ],
                 store,
             )
+
+
+class FakeEmbeddingEngine:
+    def passage_embed(self, texts: list[str]):
+        for index, _ in enumerate(texts):
+            yield np.array([float(index), 1.0])
+
+    def query_embed(self, texts: list[str]):
+        del texts
+        yield np.array([0.5, 1.0])
+
+
+class FastEmbedAdapterTests(unittest.TestCase):
+    def test_adapts_document_and_query_vectors_to_lists(self) -> None:
+        adapter = FastEmbedAdapter("unused", engine=FakeEmbeddingEngine())
+
+        self.assertEqual(
+            adapter.embed_documents(["Zeus", "Hera"]),
+            [[0.0, 1.0], [1.0, 1.0]],
+        )
+        self.assertEqual(adapter.embed_query("Olimpo"), [0.5, 1.0])
 
 
 if __name__ == "__main__":
