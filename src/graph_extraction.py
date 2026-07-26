@@ -9,6 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 from pydantic import BaseModel, Field
 
+from src.grounding import canonical_source_quote
 from src.retrieval import RetrievedChunk
 
 NodeType = Literal["deus", "heroi", "lugar", "evento"]
@@ -88,8 +89,13 @@ def extract_graph_concepts(
             raise ValueError(
                 f"Conceito referencia chunk desconhecido: {concept.chunk_id}"
             )
-        if concept.source_quote not in source.content:
+        try:
+            concept.source_quote = canonical_source_quote(
+                concept.source_quote,
+                source.content,
+            )
+        except ValueError as exc:
             raise ValueError(
                 f"Trecho do conceito não existe no chunk {concept.chunk_id}"
-            )
+            ) from exc
     return result

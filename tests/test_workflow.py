@@ -117,7 +117,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(result.edges), 3)
         self.assertEqual(result.sources[0].page, 10)
         self.assertIn(
-            "Hera was his queen.",
+            "Hera was his queen",
             {source.quote for source in result.sources},
         )
 

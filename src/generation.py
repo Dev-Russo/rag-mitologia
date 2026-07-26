@@ -11,6 +11,7 @@ from langchain_core.runnables import Runnable
 from pydantic import BaseModel, Field
 
 from src.config import Settings
+from src.grounding import canonical_source_quote
 from src.retrieval import RetrievedChunk
 
 
@@ -139,8 +140,10 @@ def generate_answer(
         source = chunks_by_id.get(citation.chunk_id)
         if source is None:
             raise ValueError(f"Citação referencia chunk desconhecido: {citation.chunk_id}")
-        if citation.quote not in source.content:
+        try:
+            citation.quote = canonical_source_quote(citation.quote, source.content)
+        except ValueError as exc:
             raise ValueError(
                 f"Citação não foi encontrada no chunk {citation.chunk_id}"
-            )
+            ) from exc
     return result
