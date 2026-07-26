@@ -1,45 +1,93 @@
 # Mapa Mitológico RAG
 
-Mapa mental vivo de mitologia grega que transforma respostas fundamentadas em um
-grafo interativo. Cada conceito exibido no mapa será vinculado ao trecho exato do
-documento usado pelo pipeline RAG.
+[![Python 3.14](https://img.shields.io/badge/Python-3.14-0b5793?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.140-0b5793?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-RAG-b78a2d)](https://www.langchain.com/langgraph)
+[![Testes](https://img.shields.io/badge/testes-36%20passando-2f9e70)](#testes)
 
-O projeto está sendo desenvolvido para o **Challenge Alura/Oracle Next Education —
-Track Tech AI Builder**.
+Um **mapa mental vivo de mitologia grega** que transforma respostas fundamentadas
+em um grafo interativo. Em vez de esconder o RAG atrás de um chat tradicional, o
+projeto torna visíveis os conceitos recuperados, suas conexões e os trechos exatos
+do documento que sustentam cada nó.
 
-> **Estado atual:** pipeline RAG implementado e coberto por testes automatizados.
-> O corpus de *The Age of Fable* já está incluído; execute a ingestão local para
-> gerar a coleção Chroma, que não é versionada.
+Projeto desenvolvido para o **Challenge Alura/Oracle Next Education — Track Tech
+AI Builder**.
 
-## Tecnologias definidas
+## Por que um mapa mental vivo?
 
-- Python 3.14
-- FastAPI e Uvicorn
-- ChromaDB
-- LangChain e LangGraph
-- FastEmbed/ONNX com `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
-- Claude Haiku 4.5 por meio do SDK da Anthropic
-- HTML, CSS e JavaScript
+Uma pergunta cria o primeiro nó. A resposta fundamentada dá origem a deuses,
+heróis, lugares e eventos. Ao selecionar um conceito, a interface mostra sua
+citação e página de origem; ao expandi-lo, uma nova consulta RAG acrescenta outra
+camada ao mapa.
 
-## Estrutura
+- Grafo hierárquico da esquerda para a direita.
+- Nós rastreáveis até o chunk original.
+- Expansão interativa de qualquer conceito.
+- Pan, zoom e enquadramento do mapa.
+- Respostas produzidas somente a partir do contexto aprovado.
+- Validação literal das citações para reduzir alucinações.
+
+## Arquitetura
+
+```mermaid
+flowchart LR
+    A[Pergunta] --> B[Retrieval no Chroma]
+    B --> C{Contexto suficiente?}
+    C -- Não --> D[Reformulação da consulta]
+    D --> B
+    C -- Sim --> E[Resposta fundamentada]
+    E --> F[Extração estruturada]
+    F --> G[Validação das citações]
+    G --> H[Mapa interativo]
+    H -- Expandir nó --> B
+```
+
+O ciclo de recuperação é orquestrado com LangGraph e limitado a três tentativas.
+Se os chunks não atingirem o score mínimo, o Claude reformula a busca. Uma
+resposta só é gerada após a aprovação determinística do contexto.
+
+### Fluxo dos dados
+
+1. O PDF é extraído e normalizado pelo `pypdf`.
+2. O texto é dividido em chunks com overlap e IDs determinísticos.
+3. O FastEmbed gera embeddings locais e o Chroma os persiste em disco.
+4. A pergunta recupera os chunks semanticamente mais próximos.
+5. O Claude sintetiza a resposta e devolve citações estruturadas.
+6. O sistema valida cada citação contra o texto real do chunk.
+7. Conceitos validados viram nós ligados à pergunta ou ao conceito expandido.
+
+## Tecnologias
+
+| Camada | Tecnologia |
+| --- | --- |
+| Backend e API | Python 3.14, FastAPI, Uvicorn |
+| Orquestração | LangChain e LangGraph |
+| LLM | Claude Haiku 4.5 via Anthropic |
+| Embeddings | FastEmbed/ONNX, modelo multilíngue MiniLM |
+| Vector store | ChromaDB local e persistente |
+| Extração de PDF | pypdf |
+| Interface | HTML, CSS, JavaScript e SVG |
+| Testes | unittest e TestClient do FastAPI |
+
+## Estrutura do projeto
 
 ```text
 .
-├── app.py
-├── data/
-├── screenshots/
+├── app.py                    # interface web e rotas /query e /expand
+├── data/                     # corpus em domínio público
+├── screenshots/              # evidências locais e do deploy
 ├── src/
-│   ├── generation.py
-│   ├── graph_extraction.py
-│   ├── ingest.py
-│   ├── retrieval.py
-│   ├── vector_store.py
-│   └── workflow.py
-├── static/
-│   ├── graph.js
-│   └── style.css
-├── templates/
-│   └── index.html
+│   ├── config.py             # configuração por variáveis de ambiente
+│   ├── generation.py         # LLM, respostas e reformulação
+│   ├── graph_extraction.py   # conceitos estruturados do grafo
+│   ├── grounding.py          # validação literal das citações
+│   ├── ingest.py             # extração, limpeza e chunking
+│   ├── retrieval.py          # recuperação e avaliação de relevância
+│   ├── vector_store.py       # embeddings e persistência no Chroma
+│   └── workflow.py           # grafo de execução do agente
+├── static/                   # mapa SVG e identidade visual
+├── templates/                # página principal
+├── tests/                    # testes unitários e de integração
 ├── .env.example
 └── requirements.txt
 ```
@@ -50,22 +98,13 @@ Track Tech AI Builder**.
 
 - Python 3.14
 - Git
+- Chave da API Anthropic
 
-Confirme que o interpretador ativo é o correto:
-
-```bash
-python --version
-```
-
-### Instalação
-
-Crie e ative um ambiente virtual.
-
-No Linux ou macOS:
+### 1. Clone e prepare o ambiente
 
 ```bash
-python3.14 -m venv .venv
-source .venv/bin/activate
+git clone https://github.com/Dev-Russo/rag-mitologia.git
+cd rag-mitologia
 ```
 
 No Windows PowerShell:
@@ -73,72 +112,118 @@ No Windows PowerShell:
 ```powershell
 py -3.14 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-Instale as dependências:
-
-```bash
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-```
-
-Copie o arquivo de configuração:
-
-```bash
-cp .env.example .env
-```
-
-No Windows PowerShell:
-
-```powershell
 Copy-Item .env.example .env
 ```
 
-A aplicação web inicia mesmo sem uma chave da Anthropic. A chave é obrigatória
-para executar o workflow RAG e nunca deve ser versionada.
+No Linux:
 
-### Inicialização
+```bash
+python3.14 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+Preencha a chave no `.env`:
+
+```dotenv
+ANTHROPIC_API_KEY=sua_chave_aqui
+```
+
+O `.env` é ignorado pelo Git e nunca deve ser versionado.
+
+### 2. Prepare o banco vetorial
+
+O repositório inclui *The Age of Fable, or, Stories of Gods and Heroes*, de
+Thomas Bulfinch, obtido no [Internet Archive](https://archive.org/details/ageoffableorstor00bulf_0)
+e disponível em domínio público.
+
+```bash
+python -m src.ingest data/ageoffableorstor00bulf_0.pdf --rebuild
+```
+
+O primeiro uso do FastEmbed baixa o modelo de embeddings. A coleção resultante é
+gravada em `chroma_db/` e não é versionada.
+
+Para testar somente a extração e o chunking:
+
+```bash
+python -m src.ingest data/ageoffableorstor00bulf_0.pdf --prepare-only
+```
+
+### 3. Inicie a aplicação
 
 ```bash
 uvicorn app:app --reload
 ```
 
-Acesse:
-
 - Interface: <http://127.0.0.1:8000>
 - Health check: <http://127.0.0.1:8000/health>
-- Documentação automática: <http://127.0.0.1:8000/docs>
+- OpenAPI: <http://127.0.0.1:8000/docs>
 
-O health check deve responder:
+Se a porta estiver ocupada no Windows:
 
-```json
-{"status": "ok"}
+```powershell
+uvicorn app:app --reload --port 8001
 ```
 
-Na interface, faça uma pergunta para criar o nó raiz. Clique em um conceito para
-ver o trecho e a página de origem; use **Expandir conceito** para executar uma nova
-busca RAG e incorporar os filhos ao mapa atual.
+## Exemplos
+
+### Quem são os filhos de Zeus?
+
+O agente recupera o trecho em que Júpiter/Zeus aparece disfarçado de cisne e
+constrói um mapa com conceitos como:
+
+```text
+Quem são os filhos de Zeus?
+├── Zeus
+├── Castor
+├── Pollux
+├── Helen
+├── Leda
+└── Guerra de Troia
+```
+
+Cada conceito mantém seu `chunk_id`, trecho literal, página e score. A seleção de
+`Helen`, por exemplo, apresenta o trecho que a relaciona à Guerra de Troia.
+
+Outras perguntas úteis:
+
+- `Qual é a relação entre Perséfone e Hades?`
+- `Quem ajudou Perseu a derrotar Medusa?`
+- `O que aconteceu durante a Guerra de Troia?`
+- `Qual é a origem de Minerva segundo o documento?`
+
+> O livro usa nomes gregos e romanos em diferentes passagens, como Zeus/Júpiter
+> e Atena/Minerva. O agente preserva a terminologia encontrada nos trechos.
 
 ## API
 
-Uma consulta inicial usa `POST /query`:
+### `POST /query`
+
+Cria um novo mapa:
 
 ```json
 {
-  "question": "Quem é Zeus e qual é sua relação com o Olimpo?"
+  "question": "Quem são os filhos de Zeus?"
 }
 ```
 
-Uma expansão usa o ID e o rótulo de um nó retornado anteriormente:
+### `POST /expand`
+
+Expande um nó existente:
 
 ```json
 {
-  "node_id": "concept:identificador",
+  "node_id": "concept:2fd805bb52808616",
   "concept": "Zeus"
 }
 ```
 
-Envie esse corpo para `POST /expand`. As duas rotas devolvem o mesmo contrato:
+As duas rotas retornam o mesmo contrato:
 
 ```json
 {
@@ -148,7 +233,7 @@ Envie esse corpo para `POST /expand`. As duas rotas devolvem o mesmo contrato:
     "sufficient": true,
     "attempts": 1,
     "final_query": "consulta utilizada",
-    "max_score": 0.6751
+    "max_score": 0.61
   },
   "nodes": [],
   "edges": [],
@@ -156,87 +241,119 @@ Envie esse corpo para `POST /expand`. As duas rotas devolvem o mesmo contrato:
 }
 ```
 
-Respostas sem evidência usam `status: "insufficient"`. Falhas controladas do
-pipeline respondem HTTP 503 com `status: "error"`.
+- `ok`: resposta e grafo produzidos com evidências.
+- `insufficient`: o corpus não contém evidência suficiente.
+- `error`: falha controlada; a API responde HTTP 503 sem expor detalhes internos.
 
 ## Configuração
 
-| Variável | Finalidade | Valor inicial |
+| Variável | Finalidade | Padrão |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | Credencial da API da Anthropic | sem valor |
-| `ANTHROPIC_MODEL` | Modelo usado para geração | `claude-haiku-4-5` |
-| `CHROMA_PATH` | Diretório do banco vetorial | `./chroma_db` |
-| `CHROMA_COLLECTION` | Nome da coleção persistente | `bulfinch_mythology` |
-| `EMBEDDING_MODEL` | Modelo local de embeddings | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
-| `PDF_PATH` | Caminho padrão do corpus | `./data/bulfinch-mythology.pdf` |
-| `RETRIEVAL_TOP_K` | Número de chunks recuperados | `5` |
-| `RETRIEVAL_MIN_SCORE` | Relevância mínima aceita | `0.40` |
-| `MAX_RETRIEVAL_ATTEMPTS` | Limite total de buscas | `3` |
-
-Nunca versione o arquivo `.env` ou chaves de API.
-
-## Pipeline RAG
-
-O workflow usa LangGraph para manter explícito e limitado o ciclo de recuperação:
-
-```text
-pergunta
-   ↓
-recuperação no Chroma
-   ↓
-avaliação por score
-   ├── insuficiente → Claude reformula → nova recuperação (máximo 3)
-   ├── insuficiente após a 3ª tentativa → resposta de insuficiência
-   └── suficiente → resposta fundamentada → conceitos do grafo
-```
-
-As citações da resposta e dos conceitos são validadas contra o conteúdo real dos
-chunks. Uma citação inventada ou vinculada ao chunk errado é rejeitada.
-
-## Preparação do corpus
-
-O corpus usado é *The Age of Fable, or, Stories of Gods and Heroes*, de Thomas
-Bulfinch, digitalizado pelo Internet Archive e disponível em domínio público:
-<https://archive.org/details/ageoffableorstor00bulf_0>.
-
-```text
-data/ageoffableorstor00bulf_0.pdf
-```
-
-Para verificar apenas a extração e o chunking:
-
-```bash
-python -m src.ingest data/ageoffableorstor00bulf_0.pdf --prepare-only
-```
-
-Para extrair, gerar os embeddings e fazer upsert no Chroma:
-
-```bash
-python -m src.ingest data/ageoffableorstor00bulf_0.pdf --rebuild
-```
-
-Os IDs são determinísticos. Use `--rebuild` quando mudar o PDF ou a estratégia de
-extração/chunking; sem essa opção, a ingestão faz upsert dos mesmos chunks.
+| `ANTHROPIC_API_KEY` | Credencial da Anthropic | obrigatório para consultas |
+| `ANTHROPIC_MODEL` | Modelo de geração | `claude-haiku-4-5` |
+| `CHROMA_PATH` | Banco vetorial local | `./chroma_db` |
+| `CHROMA_COLLECTION` | Nome da coleção | `bulfinch_mythology` |
+| `EMBEDDING_MODEL` | Modelo de embeddings | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
+| `PDF_PATH` | Corpus padrão | `./data/ageoffableorstor00bulf_0.pdf` |
+| `RETRIEVAL_TOP_K` | Chunks recuperados por tentativa | `5` |
+| `RETRIEVAL_MIN_SCORE` | Score mínimo aprovado | `0.40` |
+| `MAX_RETRIEVAL_ATTEMPTS` | Máximo de recuperações | `3` |
 
 ## Testes
 
-Execute a suíte sem consumir a API da Anthropic:
+Os testes não consomem a API Anthropic; as chamadas ao LLM são substituídas por
+dublês determinísticos.
 
 ```bash
-python -m unittest discover -v
+python -m unittest discover -s tests -v
 python -m pip check
 ```
 
-Os testes cobrem chunking, IDs estáveis, indexação, retrieval, avaliação, limite
-de tentativas, citações, conceitos, rotas e falhas controladas. As integrações com
-Claude são mockadas para evitar custo acidental.
+A suíte cobre ingestão, IDs determinísticos, embeddings, retrieval, avaliação,
+reformulação, grounding, extração de conceitos, workflow, API e regressões do
+frontend.
+
+## Deploy na OCI Compute
+
+O projeto foi desenhado para uma VM Linux da camada gratuita da OCI.
+
+### 1. Infraestrutura
+
+1. Crie uma instância Ubuntu ou Oracle Linux e associe um IP público.
+2. Na Security List ou Network Security Group, libere TCP `80` para
+   `0.0.0.0/0`.
+3. Acesse a VM por SSH e clone este repositório.
+4. Instale Python 3.14, crie o `.venv`, instale as dependências e configure o
+   `.env`.
+5. Execute a ingestão do PDF na própria VM.
+
+### 2. Serviço
+
+Crie `/etc/systemd/system/mapa-mitologico.service`, ajustando usuário e caminhos:
+
+```ini
+[Unit]
+Description=Mapa Mitológico RAG
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/rag-mitologia
+EnvironmentFile=/home/ubuntu/rag-mitologia/.env
+ExecStart=/home/ubuntu/rag-mitologia/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Ative o serviço:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now mapa-mitologico
+sudo systemctl status mapa-mitologico
+```
+
+### 3. Proxy público
+
+Instale o Nginx e direcione a porta 80 para o Uvicorn:
+
+```nginx
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Libere a porta também no firewall do sistema operacional, se estiver ativo, e
+registre em `screenshots/` a interface acessível pelo IP público e o health
+check. Essas evidências completarão o requisito de deploy do challenge.
+
+## Status do challenge
+
+- [x] Agente funcional baseado em documento.
+- [x] Leitura, chunking, embeddings e vector store persistente.
+- [x] RAG com avaliação, reformulação e grounding.
+- [x] Mapa interativo com expansão e fontes rastreáveis.
+- [x] Testes automatizados.
+- [x] Repositório organizado e histórico incremental.
+- [ ] Deploy público na OCI.
+- [ ] Screenshots finais do deploy.
 
 ## Desenvolvimento
 
 O histórico segue Conventional Commits com mensagens em português. Mudanças
-independentes devem ser registradas em commits pequenos e verificados.
-
-Exemplos:
+independentes são registradas em commits pequenos:
 
 ```text
 feat: implementa ingestão do documento
@@ -245,10 +362,3 @@ docs: adiciona instruções de deploy na OCI
 test: cobre expansão dos nós do grafo
 chore: atualiza dependências do projeto
 ```
-
-## Próximas etapas
-
-1. Validar visualmente consultas e expansões no navegador.
-2. Registrar screenshots de perguntas representativas.
-3. Preparar configuração de produção e deploy na OCI.
-4. Completar o README com evidências do agente publicado.
