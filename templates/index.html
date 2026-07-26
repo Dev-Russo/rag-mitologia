@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Explore a mitologia por meio de um mapa mental vivo com fontes rastreáveis."
+    >
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+    <script src="{{ url_for('static', path='/graph.js') }}" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">RAG · MITOLOGIA GREGA</p>
+        <h1>{{ app_name }}</h1>
+      </div>
+      <span id="api-status" class="status" aria-live="polite">Verificando API…</span>
+    </header>
+
+    <main class="workspace">
+      <section class="explorer" aria-labelledby="explorer-title">
+        <div class="query-panel">
+          <div>
+            <p class="eyebrow">COMECE POR UMA PERGUNTA</p>
+            <h2 id="explorer-title">Descubra como os mitos se conectam</h2>
+          </div>
+
+          <form id="query-form">
+            <label for="question">O que você quer explorar?</label>
+            <div class="query-row">
+              <input
+                id="question"
+                name="question"
+                type="text"
+                placeholder="Ex.: Quem são os filhos de Zeus?"
+                autocomplete="off"
+                disabled
+              >
+              <button type="submit" disabled>Gerar mapa</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="graph" class="graph-placeholder">
+          <div class="orbit" aria-hidden="true">
+            <span class="node node-main"></span>
+            <span class="node node-one"></span>
+            <span class="node node-two"></span>
+            <span class="node node-three"></span>
+          </div>
+          <p>O grafo interativo será conectado ao pipeline RAG nas próximas etapas.</p>
+        </div>
+      </section>
+
+      <aside class="source-panel" aria-labelledby="source-title">
+        <p class="eyebrow">FONTE RASTREÁVEL</p>
+        <h2 id="source-title">Contexto do nó</h2>
+        <p>
+          Selecione um conceito no mapa para consultar o trecho exato do documento
+          que fundamentou a resposta.
+        </p>
+        <div class="source-empty">Nenhum nó selecionado</div>
+      </aside>
+    </main>
+  </body>
+</html>
