@@ -68,7 +68,7 @@ class GraphExtractionTests(unittest.TestCase):
 
         self.assertEqual(len(result.concepts), 3)
 
-    def test_discards_concept_with_invented_quote(self) -> None:
+    def test_recovers_literal_quote_when_model_paraphrases(self) -> None:
         extraction = make_extraction("Zeus created the world.")
         result = extract_graph_concepts(
             question="Quem governa o Olimpo?",
@@ -77,15 +77,21 @@ class GraphExtractionTests(unittest.TestCase):
             extractor=FakeExtractor(extraction),
         )
 
-        self.assertEqual(
-            {concept.name for concept in result.concepts},
-            {"Hera", "Olimpo"},
-        )
+        self.assertEqual(len(result.concepts), 3)
+        self.assertEqual(result.concepts[0].source_quote, "Zeus ruled Olympus.")
 
-    def test_returns_empty_extraction_when_every_concept_is_ungrounded(self) -> None:
-        extraction = make_extraction("Invented Zeus quote")
-        for concept in extraction.concepts:
-            concept.source_quote = f"Invented quote about {concept.name}"
+    def test_discards_concept_unrelated_to_its_chunk(self) -> None:
+        extraction = GraphExtraction(
+            concepts=[
+                GraphConcept(
+                    name="Poseidon",
+                    type="deus",
+                    relation="habita o mar",
+                    chunk_id="myth-1",
+                    source_quote="Poseidon commands the sea.",
+                )
+            ]
+        )
 
         result = extract_graph_concepts(
             question="Quem governa o Olimpo?",

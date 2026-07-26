@@ -10,7 +10,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 from pydantic import BaseModel, Field
 
-from src.grounding import canonical_source_quote
+from src.grounding import canonical_source_quote, closest_source_quote
 from src.retrieval import RetrievedChunk
 
 logger = logging.getLogger(__name__)
@@ -101,11 +101,23 @@ def extract_graph_concepts(
                 source.content,
             )
         except ValueError:
-            logger.warning(
-                "Conceito %s descartado por não possuir citação literal",
+            try:
+                concept.source_quote = closest_source_quote(
+                    concept.source_quote,
+                    source.content,
+                    concept_name=concept.name,
+                    relation=concept.relation,
+                )
+            except ValueError:
+                logger.warning(
+                    "Conceito %s descartado por não possuir evidência no chunk",
+                    concept.name,
+                )
+                continue
+            logger.info(
+                "Citação do conceito %s recuperada diretamente do chunk",
                 concept.name,
             )
-            continue
 
         seen_names.add(normalized_name)
         validated_concepts.append(concept)

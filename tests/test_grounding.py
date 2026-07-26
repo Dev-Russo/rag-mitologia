@@ -1,6 +1,6 @@
 import unittest
 
-from src.grounding import canonical_source_quote
+from src.grounding import canonical_source_quote, closest_source_quote
 
 
 class CanonicalSourceQuoteTests(unittest.TestCase):
@@ -21,6 +21,18 @@ class CanonicalSourceQuoteTests(unittest.TestCase):
                 "Zeus created all of existence",
                 "Zeus was the father of gods and men.",
             )
+
+    def test_selects_closest_literal_sentence_for_a_paraphrase(self) -> None:
+        source = "Zeus ruled Olympus. Hera was his queen."
+
+        result = closest_source_quote(
+            "Zeus governed from Olympus",
+            source,
+            concept_name="Zeus",
+            relation="governa o Olimpo",
+        )
+
+        self.assertEqual(result, "Zeus ruled Olympus.")
 
 
 if __name__ == "__main__":

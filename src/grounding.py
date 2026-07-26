@@ -2,6 +2,16 @@
 
 from __future__ import annotations
 
+import re
+
+
+def _normalized_terms(text: str) -> set[str]:
+    return {
+        "".join(character for character in term.casefold() if character.isalnum())
+        for term in re.findall(r"\w+", text, flags=re.UNICODE)
+        if len(term) >= 3
+    }
+
 
 def canonical_source_quote(proposed_quote: str, source_content: str) -> str:
     """Retorna a substring original ignorando apenas diferenças tipográficas."""
@@ -28,3 +38,37 @@ def canonical_source_quote(proposed_quote: str, source_content: str) -> str:
     source_start = positions[start]
     source_end = positions[start + len(proposed) - 1] + 1
     return source_content[source_start:source_end].strip()
+
+
+def closest_source_quote(
+    proposed_quote: str,
+    source_content: str,
+    *,
+    concept_name: str = "",
+    relation: str = "",
+) -> str:
+    """Seleciona uma frase literal do chunk próxima ao conceito proposto."""
+
+    search_terms = _normalized_terms(
+        f"{concept_name} {proposed_quote} {relation}"
+    )
+    candidates = [
+        match.group().strip()
+        for match in re.finditer(
+            r"[^.!?]+(?:[.!?]+|$)",
+            source_content,
+            flags=re.DOTALL,
+        )
+        if match.group().strip()
+    ]
+    ranked = [
+        (len(search_terms & _normalized_terms(candidate)), -index, candidate)
+        for index, candidate in enumerate(candidates)
+    ]
+    if not ranked:
+        raise ValueError("O chunk não contém um trecho utilizável")
+
+    overlap, _, quote = max(ranked)
+    if overlap == 0:
+        raise ValueError("Nenhum trecho do chunk corresponde ao conceito")
+    return quote
