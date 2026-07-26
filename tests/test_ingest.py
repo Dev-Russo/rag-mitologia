@@ -2,7 +2,7 @@ import unittest
 
 from langchain_core.documents import Document
 
-from src.ingest import split_documents
+from src.ingest import normalize_extracted_text, split_documents
 
 
 class SplitDocumentsTests(unittest.TestCase):
@@ -52,6 +52,24 @@ class SplitDocumentsTests(unittest.TestCase):
                 chunk_size=50,
                 chunk_overlap=50,
             )
+
+    def test_normalizes_layout_ocr_and_dehyphenates_words(self) -> None:
+        raw = (
+            "  Jupiter,   or   Jove,   was  the father.\n"
+            "  He was pow-\n"
+            "  erful.\n\n"
+            "  Saturn yielded to Jupiter.  "
+        )
+
+        result = normalize_extracted_text(raw)
+
+        self.assertEqual(
+            result,
+            (
+                "Jupiter, or Jove, was the father. He was powerful.\n\n"
+                "Saturn yielded to Jupiter."
+            ),
+        )
 
 
 if __name__ == "__main__":

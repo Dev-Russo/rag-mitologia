@@ -168,11 +168,11 @@ python -m src.ingest data/ageoffableorstor00bulf_0.pdf --prepare-only
 Para extrair, gerar os embeddings e fazer upsert no Chroma:
 
 ```bash
-python -m src.ingest data/ageoffableorstor00bulf_0.pdf
+python -m src.ingest data/ageoffableorstor00bulf_0.pdf --rebuild
 ```
 
-Os IDs são determinísticos. Executar a ingestão novamente atualiza os mesmos
-chunks, em vez de duplicá-los.
+Os IDs são determinísticos. Use `--rebuild` quando mudar o PDF ou a estratégia de
+extração/chunking; sem essa opção, a ingestão faz upsert dos mesmos chunks.
 
 ## Testes
 

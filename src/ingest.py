@@ -4,18 +4,36 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 from pathlib import Path
 from typing import Sequence
 
-from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pypdf import PdfReader
 
 from src.config import get_settings
 from src.vector_store import create_vector_store, index_documents
 
 DEFAULT_CHUNK_SIZE = 1_000
 DEFAULT_CHUNK_OVERLAP = 150
+
+
+def normalize_extracted_text(text: str) -> str:
+    """Converte a camada OCR posicional em parágrafos legíveis e citáveis."""
+    dehyphenated = re.sub(r"-\s*\n\s*(?=[a-z])", "", text)
+    paragraphs: list[str] = []
+    current_lines: list[str] = []
+    for raw_line in dehyphenated.splitlines():
+        line = re.sub(r"[ \t]+", " ", raw_line).strip()
+        if line:
+            current_lines.append(line)
+        elif current_lines:
+            paragraphs.append(" ".join(current_lines))
+            current_lines = []
+    if current_lines:
+        paragraphs.append(" ".join(current_lines))
+    return "\n\n".join(paragraphs).strip()
 
 
 def load_pdf(pdf_path: Path) -> list[Document]:
@@ -26,7 +44,16 @@ def load_pdf(pdf_path: Path) -> list[Document]:
     if path.suffix.lower() != ".pdf":
         raise ValueError(f"O documento precisa ser um PDF: {path}")
 
-    pages = PyPDFLoader(str(path)).load()
+    reader = PdfReader(path)
+    pages = [
+        Document(
+            page_content=normalize_extracted_text(
+                page.extract_text(extraction_mode="layout") or ""
+            ),
+            metadata={"source": path.name, "page": page_index},
+        )
+        for page_index, page in enumerate(reader.pages)
+    ]
     if not pages or not any(page.page_content.strip() for page in pages):
         raise ValueError(f"Nenhum texto foi extraído de {path.name}")
     return pages
@@ -102,6 +129,11 @@ def main() -> None:
         action="store_true",
         help="Extrai os chunks sem gerar embeddings nem gravar no Chroma.",
     )
+    parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="Apaga e recria a coleção antes de indexar o documento.",
+    )
     args = parser.parse_args()
 
     chunks = load_and_split_pdf(
@@ -120,6 +152,9 @@ def main() -> None:
         collection_name=settings.chroma_collection,
         model_name=settings.embedding_model,
     )
+    if args.rebuild:
+        vector_store.reset_collection()
+        print(f"Coleção '{settings.chroma_collection}' recriada.")
     indexed = index_documents(chunks, vector_store)
     print(
         f"Indexação concluída: {indexed} chunks na coleção "
