@@ -21,8 +21,10 @@
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   margin: 0;
+  overflow: hidden;
   background:
     linear-gradient(115deg, transparent 0 43%, rgb(40 91 125 / 4%) 44% 45%, transparent 46%),
     linear-gradient(25deg, transparent 0 66%, rgb(183 138 45 / 4%) 67% 68%, transparent 69%),
@@ -40,8 +42,8 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 6.5rem;
-  padding: 1.5rem clamp(1.25rem, 4vw, 4rem);
+  min-height: 5.25rem;
+  padding: 1rem clamp(1.25rem, 3vw, 3rem);
   border-bottom: 1px solid #b7cbd8;
   background: rgb(255 254 249 / 78%);
   box-shadow: 0 0.35rem 1.5rem rgb(8 47 91 / 6%);
@@ -106,13 +108,19 @@ input {
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
-  min-height: calc(100vh - 6.5rem);
+  height: calc(100vh - 5.25rem);
+  height: calc(100dvh - 5.25rem);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .explorer {
   display: grid;
-  grid-template-rows: auto 1fr;
-  padding: clamp(1.5rem, 4vw, 4rem);
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(1rem, 2vw, 2rem);
+  overflow: hidden;
 }
 
 .query-panel {
@@ -124,7 +132,7 @@ input {
 
 .query-panel h2 {
   max-width: 32rem;
-  font-size: clamp(2rem, 4vw, 4rem);
+  font-size: clamp(1.7rem, 3vw, 3rem);
   line-height: 1;
   color: var(--aegean-900);
 }
@@ -185,8 +193,8 @@ button:disabled {
 
 .graph-canvas {
   position: relative;
-  min-height: 28rem;
-  margin-top: 2rem;
+  min-height: 0;
+  margin-top: 1rem;
   overflow: hidden;
   border: 1px solid #b8cbd6;
   border-radius: 0.8rem;
@@ -204,7 +212,8 @@ button:disabled {
   display: grid;
   place-items: center;
   align-content: center;
-  min-height: 34rem;
+  height: 100%;
+  min-height: 0;
   color: var(--ink-muted);
   text-align: center;
 }
@@ -212,7 +221,8 @@ button:disabled {
 .graph-canvas svg {
   display: block;
   width: 100%;
-  min-height: 34rem;
+  height: 100%;
+  min-height: 0;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -416,9 +426,14 @@ button:disabled {
 }
 
 .source-panel {
+  min-height: 0;
   padding: clamp(1.5rem, 3vw, 3rem);
   border-left: 1px solid #b7cbd8;
   background: rgb(255 254 249 / 82%);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #8fb4ca transparent;
+  scrollbar-width: thin;
 }
 
 .source-panel h2 {
@@ -497,8 +512,22 @@ button:disabled {
 }
 
 @media (max-width: 900px) {
+  body {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: calc(100vh - 5.25rem);
+    overflow: visible;
+  }
+
+  .explorer {
+    min-height: 48rem;
+    overflow: visible;
   }
 
   .query-panel {
@@ -509,6 +538,7 @@ button:disabled {
   .source-panel {
     border-top: 1px solid #b7cbd8;
     border-left: 0;
+    overflow: visible;
   }
 }
 

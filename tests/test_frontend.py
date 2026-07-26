@@ -23,7 +23,7 @@ class FrontendGraphTests(unittest.TestCase):
         )
 
         self.assertIn("graph.js') }}?v=3", template)
-        self.assertIn("style.css') }}?v=3", template)
+        self.assertIn("style.css') }}?v=4", template)
 
     def test_graph_uses_horizontal_levels_without_edge_labels(self) -> None:
         script = (PROJECT_ROOT / "static" / "graph.js").read_text(
@@ -66,6 +66,17 @@ class FrontendGraphTests(unittest.TestCase):
         self.assertIn("--aegean-900", stylesheet)
         self.assertIn("--marble", stylesheet)
         self.assertIn("--gold", stylesheet)
+
+    def test_desktop_layout_stays_inside_viewport(self) -> None:
+        stylesheet = (PROJECT_ROOT / "static" / "style.css").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("height: 100dvh", stylesheet)
+        self.assertIn("height: calc(100dvh - 5.25rem)", stylesheet)
+        self.assertIn("overflow: hidden", stylesheet)
+        self.assertIn("overflow-y: auto", stylesheet)
+        self.assertIn("@media (max-width: 900px)", stylesheet)
 
 
 if __name__ == "__main__":
