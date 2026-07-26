@@ -125,24 +125,30 @@ function calculatePositions() {
     grouped.get(level).push(id);
   });
 
+  const columnGap = 260;
+  const rowGap = 112;
+  const paddingX = 90;
+  const paddingY = 85;
+  const largestColumn = Math.max(1, ...[...grouped.values()].map((ids) => ids.length));
+  const height = Math.max(560, paddingY * 2 + (largestColumn - 1) * rowGap);
+  const maxLevel = Math.max(0, ...grouped.keys());
+  const width = Math.max(900, paddingX * 2 + maxLevel * columnGap);
   const positions = new Map();
-  [...grouped.entries()].forEach(([level, ids]) => {
-    if (level === 0) {
+
+  [...grouped.entries()]
+    .sort(([first], [second]) => first - second)
+    .forEach(([level, ids]) => {
+      const columnHeight = (ids.length - 1) * rowGap;
+      const startY = (height - columnHeight) / 2;
       ids.forEach((id, index) => {
-        positions.set(id, { x: 500 + index * 80, y: 350 });
-      });
-      return;
-    }
-    const radius = Math.min(290, 145 + level * 72);
-    ids.forEach((id, index) => {
-      const angle = -Math.PI / 2 + (index * 2 * Math.PI) / ids.length;
-      positions.set(id, {
-        x: 500 + Math.cos(angle) * radius,
-        y: 350 + Math.sin(angle) * radius,
+        positions.set(id, {
+          x: paddingX + level * columnGap,
+          y: startY + index * rowGap,
+        });
       });
     });
-  });
-  return positions;
+
+  return { positions, width, height };
 }
 
 function svgElement(name, attributes = {}) {
@@ -153,74 +159,49 @@ function svgElement(name, attributes = {}) {
   return element;
 }
 
-function addNodeLabel(group, label) {
-  const words = label.split(/\s+/);
-  const lines = [];
-  let line = "";
-  words.forEach((word) => {
-    if (`${line} ${word}`.trim().length > 18 && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = `${line} ${word}`.trim();
-    }
-  });
-  if (line) lines.push(line);
-
+function addSelectedLabel(group, label) {
   const text = svgElement("text", {
-    class: "graph-node-label",
+    class: "graph-node-label is-visible",
     "text-anchor": "middle",
+    y: "-52",
   });
-  lines.slice(0, 3).forEach((content, index) => {
-    const tspan = svgElement("tspan", {
-      x: "0",
-      dy: index === 0 ? `${-(lines.length - 1) * 7}` : "15",
-    });
-    tspan.textContent = content;
-    text.appendChild(tspan);
-  });
+  text.textContent = label;
   group.appendChild(text);
 }
 
 function renderGraph() {
-  const positions = calculatePositions();
+  const { positions, width, height } = calculatePositions();
   elements.svg.replaceChildren();
   elements.graphEmpty.toggleAttribute("hidden", state.nodes.size > 0);
   elements.svg.toggleAttribute("hidden", state.nodes.size === 0);
   if (!state.nodes.size) return;
+  elements.svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
   const edgeLayer = svgElement("g", { class: "edge-layer" });
   state.edges.forEach((edge) => {
     const start = positions.get(edge.source);
     const end = positions.get(edge.target);
     if (!start || !end) return;
-    edgeLayer.appendChild(
-      svgElement("line", {
-        class: "graph-edge",
-        x1: start.x,
-        y1: start.y,
-        x2: end.x,
-        y2: end.y,
-      }),
-    );
-    const label = svgElement("text", {
-      class: "graph-edge-label",
-      x: (start.x + end.x) / 2,
-      y: (start.y + end.y) / 2 - 7,
-      "text-anchor": "middle",
-    });
-    label.textContent = edge.relation;
-    edgeLayer.appendChild(label);
+    const curve = Math.max(70, (end.x - start.x) * 0.45);
+    edgeLayer.appendChild(svgElement("path", {
+      class: "graph-edge",
+      d: [
+        `M ${start.x + 34} ${start.y}`,
+        `C ${start.x + curve} ${start.y}`,
+        `${end.x - curve} ${end.y}`,
+        `${end.x - 34} ${end.y}`,
+      ].join(" "),
+      "aria-hidden": "true",
+    }));
   });
   elements.svg.appendChild(edgeLayer);
 
   const nodeLayer = svgElement("g", { class: "node-layer" });
   state.nodes.forEach((node) => {
     const position = positions.get(node.id);
+    const selected = node.id === state.selectedNodeId;
     const group = svgElement("g", {
-      class: `graph-node graph-node-${node.type}${
-        node.id === state.selectedNodeId ? " is-selected" : ""
-      }`,
+      class: `graph-node graph-node-${node.type}${selected ? " is-selected" : ""}`,
       transform: `translate(${position.x} ${position.y})`,
       tabindex: "0",
       role: "button",
@@ -229,10 +210,10 @@ function renderGraph() {
     group.appendChild(
       svgElement("circle", {
         class: "graph-node-circle",
-        r: node.type === "pergunta" ? "48" : "38",
+        r: node.type === "pergunta" ? "34" : "27",
       }),
     );
-    addNodeLabel(group, node.label);
+    if (selected) addSelectedLabel(group, node.label);
     group.addEventListener("click", () => selectNode(node.id));
     group.addEventListener("dblclick", () => expandSelectedNode(node.id));
     group.addEventListener("keydown", (event) => {
