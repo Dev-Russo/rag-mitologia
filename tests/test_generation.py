@@ -30,6 +30,16 @@ class FakeAnswerGenerator:
         return self.answer
 
 
+class SequenceAnswerGenerator:
+    def __init__(self, answers: list[GroundedAnswer]) -> None:
+        self.answers = answers
+        self.calls: list[dict[str, Any]] = []
+
+    def invoke(self, value: dict[str, Any]) -> GroundedAnswer:
+        self.calls.append(value)
+        return self.answers[len(self.calls) - 1]
+
+
 class QueryRewriteTests(unittest.TestCase):
     def test_returns_structured_rewritten_query(self) -> None:
         rewriter = FakeRewriter("children of Zeus in Greek mythology")
@@ -95,6 +105,53 @@ class GroundedAnswerTests(unittest.TestCase):
                 chunks=[self.chunk],
                 generator=FakeAnswerGenerator(invalid),
             )
+
+    def test_retries_when_model_translates_a_citation(self) -> None:
+        chunk = RetrievedChunk(
+            chunk_id="jupiter-1",
+            content=(
+                "Jupiter, or Jove, (Zeus,) though called the father of gods "
+                "and men, had himself a beginning."
+            ),
+            source="bulfinch.pdf",
+            page=1,
+            score=0.9,
+        )
+        translated = GroundedAnswer(
+            answer="O trecho não traz uma lista dos filhos de Zeus.",
+            citations=[
+                Citation(
+                    chunk_id="jupiter-1",
+                    quote=(
+                        "Jupiter, ou Jove, (Zeus,) though called the father "
+                        "of gods and men, had himself a beginning."
+                    ),
+                )
+            ],
+        )
+        literal = GroundedAnswer(
+            answer="O trecho não traz uma lista dos filhos de Zeus.",
+            citations=[
+                Citation(
+                    chunk_id="jupiter-1",
+                    quote=(
+                        "Jupiter, or Jove, (Zeus,) though called the father "
+                        "of gods and men, had himself a beginning."
+                    ),
+                )
+            ],
+        )
+        generator = SequenceAnswerGenerator([translated, literal])
+
+        result = generate_answer(
+            question="Quem são os filhos de Zeus?",
+            chunks=[chunk],
+            generator=generator,
+        )
+
+        self.assertEqual(result, literal)
+        self.assertEqual(len(generator.calls), 2)
+        self.assertIn("verbatim", generator.calls[1]["grounding_feedback"])
 
 
 if __name__ == "__main__":
