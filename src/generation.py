@@ -97,13 +97,19 @@ def build_answer_generator(llm: BaseChatModel) -> Runnable[Any, GroundedAnswer]:
                     "Answer in Brazilian Portuguese using only the supplied excerpts "
                     "from Bulfinch's Mythology. Do not use outside knowledge. Every "
                     "claim must be supported by at least one citation containing the "
-                    "exact chunk_id and a verbatim quote from that chunk. If the "
-                    "excerpts do not answer the question, say so clearly."
+                    "exact chunk_id and a verbatim quote from that chunk. Keep each "
+                    "quote in the source language and copy it without translation, "
+                    "paraphrase, correction, or combining excerpts. If the excerpts "
+                    "do not answer the question, say so clearly."
                 ),
             ),
             (
                 "human",
-                "Question: {question}\n\nApproved excerpts:\n{context}",
+                (
+                    "Question: {question}\n\n"
+                    "Approved excerpts:\n{context}\n\n"
+                    "Grounding feedback: {grounding_feedback}"
+                ),
             ),
         ]
     )
@@ -129,21 +135,34 @@ def generate_answer(
     if not chunks:
         raise ValueError("A resposta fundamentada exige ao menos um chunk")
 
-    result = generator.invoke(
-        {
-            "question": question.strip(),
-            "context": _format_context(chunks),
-        }
-    )
     chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
-    for citation in result.citations:
-        source = chunks_by_id.get(citation.chunk_id)
-        if source is None:
-            raise ValueError(f"Citação referencia chunk desconhecido: {citation.chunk_id}")
+    request = {
+        "question": question.strip(),
+        "context": _format_context(chunks),
+        "grounding_feedback": "",
+    }
+
+    for attempt in range(2):
+        result = generator.invoke(request)
         try:
-            citation.quote = canonical_source_quote(citation.quote, source.content)
-        except ValueError as exc:
-            raise ValueError(
-                f"Citação não foi encontrada no chunk {citation.chunk_id}"
-            ) from exc
-    return result
+            for citation in result.citations:
+                source = chunks_by_id.get(citation.chunk_id)
+                if source is None:
+                    raise ValueError(
+                        f"Citação referencia chunk desconhecido: {citation.chunk_id}"
+                    )
+                citation.quote = canonical_source_quote(
+                    citation.quote,
+                    source.content,
+                )
+            return result
+        except ValueError:
+            if attempt == 1:
+                raise
+            request["grounding_feedback"] = (
+                "The previous output was rejected. Every citation quote must be "
+                "copied verbatim from one approved excerpt, in the source language. "
+                "Do not translate, paraphrase, combine, or correct the quote."
+            )
+
+    raise AssertionError("O gerador não produziu uma resposta")

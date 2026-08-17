@@ -1,0 +1,53 @@
+services:
+  app:
+    image: ${RAG_IMAGE:-rag-mitologia:local}
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      CHROMA_PATH: /app/chroma_db
+      PDF_PATH: /app/data/ageoffableorstor00bulf_0.pdf
+      OMP_NUM_THREADS: ${OMP_NUM_THREADS:-1}
+      OPENBLAS_NUM_THREADS: ${OPENBLAS_NUM_THREADS:-1}
+      MKL_NUM_THREADS: ${MKL_NUM_THREADS:-1}
+      NUMEXPR_NUM_THREADS: ${NUMEXPR_NUM_THREADS:-1}
+      ORT_NUM_THREADS: ${ORT_NUM_THREADS:-1}
+    expose:
+      - "8000"
+    volumes:
+      - chroma_data:/app/chroma_db
+      - fastembed_cache:/root/.cache/fastembed
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  proxy:
+    image: caddy:2-alpine
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      CADDY_SITE: ${CADDY_SITE:-:80}
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
+  fastembed_cache:
+  caddy_data:
+  caddy_config:

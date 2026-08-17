@@ -1,364 +1,330 @@
 # Mapa Mitológico RAG
 
-[![Python 3.14](https://img.shields.io/badge/Python-3.14-0b5793?logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.140-0b5793?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-RAG-b78a2d)](https://www.langchain.com/langgraph)
-[![Testes](https://img.shields.io/badge/testes-36%20passando-2f9e70)](#testes)
+Agente inteligente que transforma perguntas sobre mitologia grega em respostas fundamentadas, citações rastreáveis e um mapa visual de conceitos relacionados.
 
-Um **mapa mental vivo de mitologia grega** que transforma respostas fundamentadas
-em um grafo interativo. Em vez de esconder o RAG atrás de um chat tradicional, o
-projeto torna visíveis os conceitos recuperados, suas conexões e os trechos exatos
-do documento que sustentam cada nó.
+**Demonstração pública:** http://137.131.224.135
+**Health check:** http://137.131.224.135/health
+**Desafio:** Alura/Oracle Next Education — Challenge Agente de IA
 
-Projeto desenvolvido para o **Challenge Alura/Oracle Next Education — Track Tech
-AI Builder**.
+## Visão geral
 
-## Por que um mapa mental vivo?
+O sistema usa como fonte o livro público *The Age of Fable, or, Stories of Gods and Heroes*, de Thomas Bulfinch. A pessoa faz uma pergunta, o agente recupera os trechos mais relevantes do PDF, gera uma resposta com o Claude e apresenta os conceitos encontrados em um grafo interativo.
 
-Uma pergunta cria o primeiro nó. A resposta fundamentada dá origem a deuses,
-heróis, lugares e eventos. Ao selecionar um conceito, a interface mostra sua
-citação e página de origem; ao expandi-lo, uma nova consulta RAG acrescenta outra
-camada ao mapa.
+A resposta só é aceita quando:
 
-- Grafo hierárquico da esquerda para a direita.
-- Nós rastreáveis até o chunk original.
-- Expansão interativa de qualquer conceito.
-- Pan, zoom e enquadramento do mapa.
-- Respostas produzidas somente a partir do contexto aprovado.
-- Validação literal das citações para reduzir alucinações.
+- há contexto suficiente no documento;
+- as citações correspondem literalmente aos trechos recuperados;
+- cada fonte mantém o arquivo e a página de origem;
+- o conteúdo pode ser visualmente explorado e expandido.
+
+O corpus possui 495 páginas e é versionado no projeto em:
+
+    data/ageoffableorstor00bulf_0.pdf
+
+## Entregáveis do Challenge
+
+- Repositório público com código-fonte organizado.
+- Histórico de commits representando a evolução do projeto.
+- README com arquitetura, tecnologias, execução e exemplos.
+- Agente funcional baseado em documento PDF.
+- Pipeline de leitura, normalização, chunking, embeddings e recuperação.
+- Respostas geradas com evidências e validação de grounding.
+- Interface visual com mapa de conceitos, relações e fontes.
+- Deploy público realizado na OCI.
+- Demonstração acessível em http://137.131.224.135.
 
 ## Arquitetura
 
-```mermaid
-flowchart LR
-    A[Pergunta] --> B[Retrieval no Chroma]
-    B --> C{Contexto suficiente?}
-    C -- Não --> D[Reformulação da consulta]
-    D --> B
-    C -- Sim --> E[Resposta fundamentada]
-    E --> F[Extração estruturada]
-    F --> G[Validação das citações]
-    G --> H[Mapa interativo]
-    H -- Expandir nó --> B
-```
+    Pergunta
+        │
+        ▼
+    FastAPI
+        │
+        ▼
+    Workflow LangGraph
+        │
+        ├── Recuperação semântica no ChromaDB
+        │       └── FastEmbed/ONNX
+        │
+        ├── Avaliação de suficiência do contexto
+        │       └── Reformulação da busca quando necessário
+        │
+        ├── Geração estruturada com Anthropic Claude
+        │
+        ├── Validação literal das citações
+        │
+        └── Extração de conceitos e relações
+                │
+                ▼
+        Interface HTML/CSS/JavaScript
+        └── Mapa interativo com fontes
 
-O ciclo de recuperação é orquestrado com LangGraph e limitado a três tentativas.
-Se os chunks não atingirem o score mínimo, o Claude reformula a busca. Uma
-resposta só é gerada após a aprovação determinística do contexto.
+### Módulos principais
 
-### Fluxo dos dados
-
-1. O PDF é extraído e normalizado pelo `pypdf`.
-2. O texto é dividido em chunks com overlap e IDs determinísticos.
-3. O FastEmbed gera embeddings locais e o Chroma os persiste em disco.
-4. A pergunta recupera os chunks semanticamente mais próximos.
-5. O Claude sintetiza a resposta e devolve citações estruturadas.
-6. O sistema valida cada citação contra o texto real do chunk.
-7. Conceitos validados viram nós ligados à pergunta ou ao conceito expandido.
+- app.py: rotas FastAPI, health check e entrega da interface.
+- src/ingest.py: leitura do PDF, normalização e divisão em chunks.
+- src/vector_store.py: embeddings FastEmbed e persistência ChromaDB.
+- src/retrieval.py: busca semântica e avaliação de relevância.
+- src/generation.py: geração de respostas com Claude e validação de citações.
+- src/grounding.py: conferência literal das evidências.
+- src/graph_extraction.py: extração dos conceitos e relações do grafo.
+- src/workflow.py: orquestração do fluxo RAG com LangGraph.
+- static/: comportamento e apresentação do mapa.
+- templates/: página principal da aplicação.
+- tests/: testes determinísticos com unittest e mocks.
 
 ## Tecnologias
 
 | Camada | Tecnologia |
 | --- | --- |
-| Backend e API | Python 3.14, FastAPI, Uvicorn |
-| Orquestração | LangChain e LangGraph |
-| LLM | Claude Haiku 4.5 via Anthropic |
-| Embeddings | FastEmbed/ONNX, modelo multilíngue MiniLM |
-| Vector store | ChromaDB local e persistente |
-| Extração de PDF | pypdf |
+| API | Python 3.14 e FastAPI |
+| Servidor | Uvicorn |
+| Orquestração | LangGraph |
+| Modelo generativo | Anthropic Claude Haiku |
+| Embeddings | FastEmbed/ONNX |
+| Banco vetorial | ChromaDB |
+| Documento | PDF processado com pypdf |
 | Interface | HTML, CSS, JavaScript e SVG |
-| Testes | unittest e TestClient do FastAPI |
+| Deploy | Docker Compose, Caddy e Oracle Cloud Infrastructure |
+| Testes | unittest, FastAPI TestClient e mocks |
 
-## Estrutura do projeto
-
-```text
-.
-├── app.py                    # interface web e rotas /query e /expand
-├── data/                     # corpus em domínio público
-├── screenshots/              # evidências locais e do deploy
-├── src/
-│   ├── config.py             # configuração por variáveis de ambiente
-│   ├── generation.py         # LLM, respostas e reformulação
-│   ├── graph_extraction.py   # conceitos estruturados do grafo
-│   ├── grounding.py          # validação literal das citações
-│   ├── ingest.py             # extração, limpeza e chunking
-│   ├── retrieval.py          # recuperação e avaliação de relevância
-│   ├── vector_store.py       # embeddings e persistência no Chroma
-│   └── workflow.py           # grafo de execução do agente
-├── static/                   # mapa SVG e identidade visual
-├── templates/                # página principal
-├── tests/                    # testes unitários e de integração
-├── .env.example
-└── requirements.txt
-```
-
-## Execução local
+## Como executar localmente
 
 ### Pré-requisitos
 
-- Python 3.14
-- Git
-- Chave da API Anthropic
+- Docker Desktop com o engine Linux ativo;
+- uma chave da API Anthropic;
+- Git, caso o projeto seja clonado.
 
-### 1. Clone e prepare o ambiente
+### Configuração
 
-```bash
-git clone https://github.com/Dev-Russo/rag-mitologia.git
-cd rag-mitologia
-```
+No PowerShell:
 
-No Windows PowerShell:
+    Copy-Item .env.example .env
 
-```powershell
-py -3.14 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-Copy-Item .env.example .env
-```
+Edite o arquivo .env e preencha:
+
+    ANTHROPIC_API_KEY=sua_chave_anthropic
+
+O arquivo .env não deve ser versionado.
+
+### Execução recomendada com Docker
+
+    docker compose up --build -d
+    docker compose ps
+    docker compose logs -f app
+
+A aplicação ficará disponível em:
+
+- Interface: http://localhost:8080
+- Health check: http://localhost:8080/health
+- Documentação OpenAPI: http://localhost:8080/docs
+
+A primeira inicialização baixa o modelo de embeddings e cria o índice persistente do ChromaDB. As próximas inicializações reutilizam os volumes Docker.
+
+Para parar os containers sem apagar os dados:
+
+    docker compose down
+
+Para remover também o índice e forçar uma nova ingestão:
+
+    docker compose down -v
+
+### Execução sem Docker
+
+No PowerShell:
+
+    py -3.14 -m venv .venv
+    .\.venv\Scripts\Activate.ps1
+    python -m pip install --upgrade pip
+    python -m pip install -r requirements.txt
+    python -m src.ingest data/ageoffableorstor00bulf_0.pdf --rebuild
+    uvicorn app:app --reload
 
 No Linux:
 
-```bash
-python3.14 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-cp .env.example .env
-```
+    python3.14 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install --upgrade pip
+    python -m pip install -r requirements.txt
+    python -m src.ingest data/ageoffableorstor00bulf_0.pdf --rebuild
+    uvicorn app:app --reload
 
-Preencha a chave no `.env`:
+## Exemplos de perguntas
 
-```dotenv
-ANTHROPIC_API_KEY=sua_chave_aqui
-```
+O agente consegue responder perguntas como:
 
-O `.env` é ignorado pelo Git e nunca deve ser versionado.
+- Quem ajudou Perseu a derrotar a Medusa?
+- Qual é a relação entre Perséfone e Hades?
+- Quem são os filhos de Zeus?
+- O que aconteceu durante a Guerra de Troia?
+- Qual é a origem de Minerva segundo o documento?
+- Quais personagens aparecem relacionados a Hércules?
 
-### 2. Prepare o banco vetorial
+Quando o PDF não fornece evidência suficiente, o sistema informa que não encontrou contexto aprovado em vez de inventar uma resposta.
 
-O repositório inclui *The Age of Fable, or, Stories of Gods and Heroes*, de
-Thomas Bulfinch, obtido no [Internet Archive](https://archive.org/details/ageoffableorstor00bulf_0)
-e disponível em domínio público.
+## Exemplo de resposta gerada
 
-```bash
-python -m src.ingest data/ageoffableorstor00bulf_0.pdf --rebuild
-```
+Pergunta:
 
-O primeiro uso do FastEmbed baixa o modelo de embeddings. A coleção resultante é
-gravada em `chroma_db/` e não é versionada.
+    Quem ajudou Perseu a derrotar a Medusa?
 
-Para testar somente a extração e o chunking:
+Resposta produzida pela demonstração pública:
 
-```bash
-python -m src.ingest data/ageoffableorstor00bulf_0.pdf --prepare-only
-```
+    Perseu foi ajudado por Minerva e Mercúrio a derrotar a Medusa.
+    Minerva lhe emprestou seu escudo e Mercúrio lhe emprestou seus
+    sapatos alados. Com a ajuda desses deuses, Perseu se aproximou da
+    Medusa enquanto ela dormia e, guiando-se pela imagem dela refletida
+    no escudo brilhante que portava, cortou sua cabeça.
 
-### 3. Inicie a aplicação
+Evidência retornada pelo sistema:
 
-```bash
-uvicorn app:app --reload
-```
+- Status: ok
+- Contexto suficiente: true
+- Fonte: ageoffableorstor00bulf_0.pdf
+- Página: 172
+- Citações e conceitos disponíveis no mapa interativo
 
-- Interface: <http://127.0.0.1:8000>
-- Health check: <http://127.0.0.1:8000/health>
-- OpenAPI: <http://127.0.0.1:8000/docs>
-
-Se a porta estiver ocupada no Windows:
-
-```powershell
-uvicorn app:app --reload --port 8001
-```
-
-## Exemplos
-
-### Quem são os filhos de Zeus?
-
-O agente recupera o trecho em que Júpiter/Zeus aparece disfarçado de cisne e
-constrói um mapa com conceitos como:
-
-```text
-Quem são os filhos de Zeus?
-├── Zeus
-├── Castor
-├── Pollux
-├── Helen
-├── Leda
-└── Guerra de Troia
-```
-
-Cada conceito mantém seu `chunk_id`, trecho literal, página e score. A seleção de
-`Helen`, por exemplo, apresenta o trecho que a relaciona à Guerra de Troia.
-
-Outras perguntas úteis:
-
-- `Qual é a relação entre Perséfone e Hades?`
-- `Quem ajudou Perseu a derrotar Medusa?`
-- `O que aconteceu durante a Guerra de Troia?`
-- `Qual é a origem de Minerva segundo o documento?`
-
-> O livro usa nomes gregos e romanos em diferentes passagens, como Zeus/Júpiter
-> e Atena/Minerva. O agente preserva a terminologia encontrada nos trechos.
+A interface também exibe os nós extraídos, suas relações, os trechos literais e as páginas de origem.
 
 ## API
 
-### `POST /query`
+### POST /query
 
-Cria um novo mapa:
+Cria um mapa a partir de uma pergunta.
 
-```json
-{
-  "question": "Quem são os filhos de Zeus?"
-}
-```
+    {
+      "question": "Quem são os filhos de Zeus?"
+    }
 
-### `POST /expand`
+### POST /expand
 
-Expande um nó existente:
+Expande um conceito existente.
 
-```json
-{
-  "node_id": "concept:2fd805bb52808616",
-  "concept": "Zeus"
-}
-```
+    {
+      "node_id": "concept:2fd805bb52808616",
+      "concept": "Zeus"
+    }
 
-As duas rotas retornam o mesmo contrato:
+As duas rotas retornam um contrato semelhante:
 
-```json
-{
-  "status": "ok",
-  "answer": "Resposta fundamentada em português.",
-  "evaluation": {
-    "sufficient": true,
-    "attempts": 1,
-    "final_query": "consulta utilizada",
-    "max_score": 0.61
-  },
-  "nodes": [],
-  "edges": [],
-  "sources": []
-}
-```
+    {
+      "status": "ok",
+      "answer": "Resposta fundamentada em português.",
+      "evaluation": {
+        "sufficient": true,
+        "attempts": 1,
+        "final_query": "consulta utilizada",
+        "max_score": 0.61
+      },
+      "nodes": [],
+      "edges": [],
+      "sources": []
+    }
 
-- `ok`: resposta e grafo produzidos com evidências.
-- `insufficient`: o corpus não contém evidência suficiente.
-- `error`: falha controlada; a API responde HTTP 503 sem expor detalhes internos.
+Rotas auxiliares:
+
+- GET /health: verifica se a API está disponível.
+- GET /docs: documentação OpenAPI interativa.
+
+## Deploy na OCI
+
+A aplicação está publicada em uma VM Compute da OCI com Ubuntu 24.04, Docker Engine, Docker Compose, Caddy e volumes persistentes para o índice vetorial e o cache do modelo.
+
+### Configuração usada
+
+- Região: Brazil East (São Paulo)
+- Forma: VM.Standard.E2.1.Micro
+- Memória: 1 GB
+- IP público: 137.131.224.135
+- Porta pública em uso: 80 (HTTP)
+- Porta interna da API: 8000, não exposta diretamente
+- Proxy: Caddy
+- Reinício automático: habilitado no Docker
+
+A demonstração pode ser acessada em:
+
+    http://137.131.224.135
+
+O endereço atual usa HTTP. A porta 443 está reservada no proxy, mas o HTTPS automático depende de um domínio apontado para o IP público.
+
+### Ajustes para a VM pequena
+
+Para manter o sistema funcional em uma VM de 1 GB, o deploy utiliza:
+
+    EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+    CHUNK_SIZE=2000
+    CHUNK_OVERLAP=200
+    OMP_NUM_THREADS=1
+    OPENBLAS_NUM_THREADS=1
+    MKL_NUM_THREADS=1
+    NUMEXPR_NUM_THREADS=1
+    ORT_NUM_THREADS=1
+
+O modelo multilíngue configurado por padrão oferece melhor busca entre idiomas, mas exige mais recursos. Em uma VM maior, ele pode ser reativado removendo o override do .env.
+
+### Atualização do deploy
+
+Na VM, depois de transferir uma nova versão:
+
+    cd /home/ubuntu/rag-mitologia
+    docker compose up -d --build
+    docker compose ps
+    docker compose logs -f app
+
+As portas 80 e 443 precisam estar liberadas na Security List ou Network Security Group da VCN. A porta interna 8000 não deve ser aberta para a Internet.
+
+## Validação
+
+Testes automatizados:
+
+    python -m unittest discover -s tests -v
+    python -m pip check
+
+Validações do deploy:
+
+    docker compose config -q
+    curl http://localhost/health
+
+O fluxo público foi validado com:
+
+- página principal respondendo HTTP 200;
+- health check respondendo status ok;
+- pergunta em inglês retornando resposta fundamentada;
+- pergunta em português retornando status ok, contexto suficiente e fontes;
+- containers app e proxy em estado saudável.
 
 ## Configuração
 
-| Variável | Finalidade | Padrão |
-| --- | --- | --- |
-| `ANTHROPIC_API_KEY` | Credencial da Anthropic | obrigatório para consultas |
-| `ANTHROPIC_MODEL` | Modelo de geração | `claude-haiku-4-5` |
-| `CHROMA_PATH` | Banco vetorial local | `./chroma_db` |
-| `CHROMA_COLLECTION` | Nome da coleção | `bulfinch_mythology` |
-| `EMBEDDING_MODEL` | Modelo de embeddings | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
-| `PDF_PATH` | Corpus padrão | `./data/ageoffableorstor00bulf_0.pdf` |
-| `RETRIEVAL_TOP_K` | Chunks recuperados por tentativa | `5` |
-| `RETRIEVAL_MIN_SCORE` | Score mínimo aprovado | `0.40` |
-| `MAX_RETRIEVAL_ATTEMPTS` | Máximo de recuperações | `3` |
+As principais variáveis são:
 
-## Testes
+| Variável | Finalidade |
+| --- | --- |
+| ANTHROPIC_API_KEY | Chave da API Anthropic |
+| ANTHROPIC_MODEL | Modelo de geração |
+| EMBEDDING_MODEL | Modelo de embeddings |
+| CHROMA_PATH | Diretório persistente do ChromaDB |
+| CHROMA_COLLECTION | Nome da coleção vetorial |
+| PDF_PATH | Caminho do documento-fonte |
+| RETRIEVAL_TOP_K | Quantidade de chunks recuperados |
+| RETRIEVAL_MIN_SCORE | Score mínimo de relevância |
+| MAX_RETRIEVAL_ATTEMPTS | Limite de tentativas de recuperação |
+| CHUNK_SIZE | Tamanho dos chunks na ingestão |
+| CHUNK_OVERLAP | Sobreposição entre chunks |
 
-Os testes não consomem a API Anthropic; as chamadas ao LLM são substituídas por
-dublês determinísticos.
+## Segurança e limitações
 
-```bash
-python -m unittest discover -s tests -v
-python -m pip check
-```
+- A chave Anthropic é lida somente por variável de ambiente.
+- O arquivo .env é ignorado pelo Git.
+- A API interna não é publicada diretamente.
+- As respostas dependem da cobertura do documento-fonte.
+- O IP público atual pode mudar se a VM for recriada sem um endereço reservado.
+- O projeto é uma demonstração educacional de RAG, não uma fonte histórica definitiva.
 
-A suíte cobre ingestão, IDs determinísticos, embeddings, retrieval, avaliação,
-reformulação, grounding, extração de conceitos, workflow, API e regressões do
-frontend.
+## Licença e fonte
 
-## Deploy na OCI Compute
+O corpus utilizado é o livro *The Age of Fable, or, Stories of Gods and Heroes*, de Thomas Bulfinch, disponível em domínio público no Internet Archive:
 
-O projeto foi desenhado para uma VM Linux da camada gratuita da OCI.
+https://archive.org/details/ageoffableorstor00bulf_0
 
-### 1. Infraestrutura
-
-1. Crie uma instância Ubuntu ou Oracle Linux e associe um IP público.
-2. Na Security List ou Network Security Group, libere TCP `80` para
-   `0.0.0.0/0`.
-3. Acesse a VM por SSH e clone este repositório.
-4. Instale Python 3.14, crie o `.venv`, instale as dependências e configure o
-   `.env`.
-5. Execute a ingestão do PDF na própria VM.
-
-### 2. Serviço
-
-Crie `/etc/systemd/system/mapa-mitologico.service`, ajustando usuário e caminhos:
-
-```ini
-[Unit]
-Description=Mapa Mitológico RAG
-After=network.target
-
-[Service]
-User=ubuntu
-WorkingDirectory=/home/ubuntu/rag-mitologia
-EnvironmentFile=/home/ubuntu/rag-mitologia/.env
-ExecStart=/home/ubuntu/rag-mitologia/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Ative o serviço:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now mapa-mitologico
-sudo systemctl status mapa-mitologico
-```
-
-### 3. Proxy público
-
-Instale o Nginx e direcione a porta 80 para o Uvicorn:
-
-```nginx
-server {
-    listen 80;
-    server_name _;
-
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Libere a porta também no firewall do sistema operacional, se estiver ativo, e
-registre em `screenshots/` a interface acessível pelo IP público e o health
-check. Essas evidências completarão o requisito de deploy do challenge.
-
-## Status do challenge
-
-- [x] Agente funcional baseado em documento.
-- [x] Leitura, chunking, embeddings e vector store persistente.
-- [x] RAG com avaliação, reformulação e grounding.
-- [x] Mapa interativo com expansão e fontes rastreáveis.
-- [x] Testes automatizados.
-- [x] Repositório organizado e histórico incremental.
-- [ ] Deploy público na OCI.
-- [ ] Screenshots finais do deploy.
-
-## Desenvolvimento
-
-O histórico segue Conventional Commits com mensagens em português. Mudanças
-independentes são registradas em commits pequenos:
-
-```text
-feat: implementa ingestão do documento
-fix: preserva metadados ao recuperar chunks
-docs: adiciona instruções de deploy na OCI
-test: cobre expansão dos nós do grafo
-chore: atualiza dependências do projeto
-```
+O código deste projeto é destinado ao Challenge Alura/Oracle Next Education.

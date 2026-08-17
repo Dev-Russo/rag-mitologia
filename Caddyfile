@@ -1,0 +1,3 @@
+{$CADDY_SITE} {
+    reverse_proxy app:8000
+}
